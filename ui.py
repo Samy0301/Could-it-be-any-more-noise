@@ -68,7 +68,7 @@ class SongRow(ctk.CTkFrame):
             self.configure(fg_color=("#3b82f6", "#2563eb"))
             self.lbl.configure(text_color="white")
         else:
-            self.configure(fg_color=("transparent", "transparent"))
+            self.configure(fg_color="transparent")
             self.lbl.configure(text_color=("gray10", "gray90"))
 
     def _on_enter(self, _event=None):
@@ -423,7 +423,7 @@ class SonicVaultApp(ctk.CTk):
         self.status.configure(text="Reproduciendo")
 
     def _toggle_play(self):
-        if not self.player.has_file():
+        if not self.player.has_file:
             if self.songs:
                 self.current_index = 0
                 self._play_current()
