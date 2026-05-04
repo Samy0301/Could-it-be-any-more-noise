@@ -4,13 +4,10 @@
 
 import customtkinter as ctk
 
-# Apariencia
 ctk.set_appearance_mode("Dark")
 
-# Extensiones soportadas
 SUPPORTED_EXTENSIONS = (".mp3", ".flac", ".wav", ".ogg", ".m4a", ".mp4")
 
-# Configuración por defecto
 DEFAULT_CONFIG = {
     "last_folder": "",
     "theme": "Dark",
@@ -18,18 +15,17 @@ DEFAULT_CONFIG = {
     "window_size": "1000x700"
 }
 
-# ============================================================================
-# PALETA MORADA / PURPURA
-# ============================================================================
+# Paleta de colores
+
 COLORS = {
-    "bg_primary":   "#0a0118",   # Fondo ventana principal (casi negro púrpura)
-    "bg_secondary": "#160429",   # Frames / paneles
-    "bg_tertiary":  "#240046",   # Inputs, controles, barras
-    "accent":       "#7b2cbf",   # Botones, acentos principales
-    "accent_hover": "#9d4edd",   # Hover botones
-    "accent_bright":"#c77dff",   # Slider knob, highlights
-    "text_primary": "#e0aaff",   # Texto principal (lavanda claro)
-    "text_secondary":"#9d4edd",  # Texto secundario / placeholders
-    "border":       "#3c096c",   # Bordes sutiles
-    "danger":       "#ff006e",   # Errores / stop
+    "bg_primary":    "#0f0718",
+    "bg_secondary":  "#1a1025",
+    "bg_tertiary":   "#2e1a47",
+    "accent":        "#6d28d9",
+    "accent_hover":  "#8b5cf6",
+    "accent_bright": "#c4b5fd",
+    "text_primary":  "#f5f3ff",
+    "text_secondary": "#a78bfa",
+    "border":        "#4c1d95",
+    "danger":        "#c319b2",
 }
