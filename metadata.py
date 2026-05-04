@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Extracción de metadatos de archivos de audio."""
+"""Extracción de metadatos y portadas de archivos de audio."""
 
 from pathlib import Path
 
 from mutagen.mp3 import MP3
-from mutagen.flac import FLAC
+from mutagen.flac import FLAC, Picture
 from mutagen.wave import WAVE
 from mutagen.oggvorbis import OggVorbis
 from mutagen.mp4 import MP4
+from mutagen.id3 import APIC
 
 from constants import SUPPORTED_EXTENSIONS
 
@@ -50,6 +51,11 @@ class AudioMetadata:
             self.title = self._tag(audio.tags, "TIT2", self.title)
             self.artist = self._tag(audio.tags, "TPE1", "Artista desconocido")
             self.album = self._tag(audio.tags, "TALB", "Álbum desconocido")
+            # --- PORTADA MP3 (ID3/APIC) ---
+            for tag in audio.tags.values():
+                if isinstance(tag, APIC):
+                    self.cover = tag.data
+                    break
 
     def _extract_flac(self):
         audio = FLAC(self.path)
@@ -57,6 +63,7 @@ class AudioMetadata:
         self.title = self._tag(audio, "title", self.title)
         self.artist = self._tag(audio, "artist", "Artista desconocido")
         self.album = self._tag(audio, "album", "Álbum desconocido")
+        # --- PORTADA FLAC ---
         if audio.pictures:
             self.cover = audio.pictures[0].data
 
@@ -70,6 +77,15 @@ class AudioMetadata:
         self.title = self._tag(audio, "title", self.title)
         self.artist = self._tag(audio, "artist", "Artista desconocido")
         self.album = self._tag(audio, "album", "Álbum desconocido")
+        # --- PORTADA OGG (METADATA_BLOCK_PICTURE) ---
+        if "metadata_block_picture" in audio:
+            try:
+                import base64
+                pic_data = base64.b64decode(audio["metadata_block_picture"][0])
+                pic = Picture(pic_data)
+                self.cover = pic.data
+            except Exception:
+                pass
 
     def _extract_m4a(self):
         audio = MP4(self.path)
@@ -80,6 +96,12 @@ class AudioMetadata:
             self.artist = str(audio["\xa9ART"][0])
         if "\xa9alb" in audio:
             self.album = str(audio["\xa9alb"][0])
+        # --- PORTADA M4A/MP4 (covr) ---
+        if "covr" in audio:
+            try:
+                self.cover = bytes(audio["covr"][0])
+            except Exception:
+                pass
 
     @staticmethod
     def _tag(audio_obj, key: str, default: str) -> str:
