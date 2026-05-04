@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SonicVault 🎵 — Lista izquierda | Reproducción derecha (ancho fijo)
+SonicVault 🎵 — Lista izquierda | Reproducción derecha | Skip bidireccional
 """
 
 import random
@@ -92,8 +92,8 @@ class SonicVaultApp(ctk.CTk):
             self, fg_color="transparent"
         )
         self.content_frame.grid(row=1, column=0, sticky="nsew", padx=15, pady=5)
-        # Solo la columna 0 (lista) crece. La columna 1 (reproducción) es ancho fijo.
         self.content_frame.grid_columnconfigure(0, weight=1)
+        self.content_frame.grid_columnconfigure(1, minsize=350)
         self.content_frame.grid_rowconfigure(0, weight=1)
 
         # -- Left: Song List --
@@ -118,17 +118,16 @@ class SonicVaultApp(ctk.CTk):
         self.scroll_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         self.scroll_frame.grid_columnconfigure(0, weight=1)
 
-        self.list_widgets: list[ctk.CTkFrame] = []
+        self.list_widgets: list[tuple[ctk.CTkFrame, ctk.CTkLabel]] = []
 
-        # -- Right: Now Playing (ancho fijo = 280 portada + 40 márgenes) --
+        # -- Right: Now Playing --
         self.left_frame = ctk.CTkFrame(
             self.content_frame, fg_color=COLORS["bg_secondary"],
             border_color=COLORS["border"], border_width=1, corner_radius=16,
-            width=350  # <-- ANCHO FIJO exacto para la portada + paddings
+            width=350
         )
-        self.left_frame.grid(row=0, column=1, sticky="ns")  # ns = solo vertical, no horizontal
-        self.left_frame.grid_propagate(False)  # <-- Mantiene el ancho fijo sin importar el contenido
-        self.content_frame.grid_columnconfigure(1, minsize=350)
+        self.left_frame.grid(row=0, column=1, sticky="ns")
+        self.left_frame.grid_propagate(False)
         self.left_frame.grid_rowconfigure(0, weight=1)
         self.left_frame.grid_rowconfigure(1, weight=0)
 
@@ -241,6 +240,39 @@ class SonicVaultApp(ctk.CTk):
         self._update_loop()
 
     # ========================================================================
+    # UTILIDADES DE LISTA / HIGHLIGHT
+    # ========================================================================
+    def _set_row_style(self, row: ctk.CTkFrame, lbl: ctk.CTkLabel, is_playing: bool):
+        row.is_playing = is_playing
+        if is_playing:
+            row.configure(fg_color=COLORS["accent"])
+            lbl.configure(text_color=COLORS["text_primary"])
+        else:
+            row.configure(fg_color=COLORS["bg_tertiary"])
+            lbl.configure(text_color=COLORS["text_primary"])
+
+    def _on_row_enter(self, row: ctk.CTkFrame, lbl: ctk.CTkLabel):
+        if getattr(row, "is_playing", False):
+            row.configure(fg_color=COLORS["accent_hover"])
+        else:
+            row.configure(fg_color=COLORS["accent"])
+
+    def _on_row_leave(self, row: ctk.CTkFrame, lbl: ctk.CTkLabel):
+        if getattr(row, "is_playing", False):
+            row.configure(fg_color=COLORS["accent"])
+        else:
+            row.configure(fg_color=COLORS["bg_tertiary"])
+
+    def _highlight_current_song(self):
+        current_meta = self.songs[self.current_index] if 0 <= self.current_index < len(self.songs) else None
+
+        for row, lbl in self.list_widgets:
+            if current_meta and getattr(row, "meta_path", None) == current_meta.path:
+                self._set_row_style(row, lbl, is_playing=True)
+            else:
+                self._set_row_style(row, lbl, is_playing=False)
+
+    # ========================================================================
     # CARPETA Y LISTA
     # ========================================================================
     def _select_folder(self):
@@ -265,8 +297,8 @@ class SonicVaultApp(ctk.CTk):
         self.status.configure(text=f"✦ {len(self.songs)} canciones cargadas")
 
     def _render_list(self):
-        for w in self.list_widgets:
-            w.destroy()
+        for row, lbl in self.list_widgets:
+            row.destroy()
         self.list_widgets.clear()
 
         for idx, meta in enumerate(self.filtered_songs):
@@ -278,9 +310,7 @@ class SonicVaultApp(ctk.CTk):
             )
             row.grid(sticky="ew", pady=3, padx=2)
             row.grid_columnconfigure(0, weight=1)
-            row.bind("<Enter>", lambda e, r=row: r.configure(fg_color=COLORS["accent"]))
-            row.bind("<Leave>", lambda e, r=row: r.configure(fg_color=COLORS["bg_tertiary"]))
-            row.bind("<Button-1>", lambda e, i=idx: self._select_song(i))
+            row.meta_path = meta.path
 
             lbl = ctk.CTkLabel(
                 row,
@@ -289,9 +319,19 @@ class SonicVaultApp(ctk.CTk):
                 text_color=COLORS["text_primary"]
             )
             lbl.grid(row=0, column=0, sticky="w", padx=12, pady=10)
+
+            row.bind("<Button-1>", lambda e, i=idx: self._select_song(i))
             lbl.bind("<Button-1>", lambda e, i=idx: self._select_song(i))
 
-            self.list_widgets.append(row)
+            row.bind("<Enter>", lambda e, r=row, l=lbl: self._on_row_enter(r, l))
+            row.bind("<Leave>", lambda e, r=row, l=lbl: self._on_row_leave(r, l))
+            lbl.bind("<Enter>", lambda e, r=row, l=lbl: self._on_row_enter(r, l))
+            lbl.bind("<Leave>", lambda e, r=row, l=lbl: self._on_row_leave(r, l))
+
+            self.list_widgets.append((row, lbl))
+
+        if self.player.is_playing() or self.player.is_paused():
+            self._highlight_current_song()
 
     def _on_search(self, event=None):
         query = self.search_entry.get().lower()
@@ -307,8 +347,15 @@ class SonicVaultApp(ctk.CTk):
         self._render_list()
 
     # ========================================================================
-    # REPRODUCCIÓN
+    # REPRODUCCIÓN  (con skip bidireccional)
     # ========================================================================
+    def _skip_in_direction(self, direction: int):
+        """Salta al siguiente tema en la dirección indicada cuando hay error."""
+        if not self.songs:
+            return
+        self.current_index = (self.current_index + direction) % len(self.songs)
+        self._play_current(direction=direction)
+
     def _select_song(self, filtered_idx: int):
         if not self.filtered_songs:
             return
@@ -317,9 +364,9 @@ class SonicVaultApp(ctk.CTk):
             self.current_index = self.songs.index(meta)
         except ValueError:
             return
-        self._play_current()
+        self._play_current(direction=1)
 
-    def _play_current(self):
+    def _play_current(self, direction: int = 1):
         if self.current_index < 0 or self.current_index >= len(self.songs):
             return
         meta = self.songs[self.current_index]
@@ -329,7 +376,8 @@ class SonicVaultApp(ctk.CTk):
             self.player.play()
         except Exception as e:
             self.status.configure(text=f"✦ Error: {str(e)[:60]}")
-            self.after(1000, self._next_song)
+            # Si falla, salta en la misma dirección que venía (adelante o atrás)
+            self.after(1000, lambda: self._skip_in_direction(direction))
             return
 
         self.lbl_title.configure(text=meta.title)
@@ -345,11 +393,13 @@ class SonicVaultApp(ctk.CTk):
         self.progress.configure(state="normal")
         self.status.configure(text="✦ Reproduciendo")
 
+        self._highlight_current_song()
+
     def _toggle_play(self):
         if not self.player.has_file():
             if self.songs:
                 self.current_index = 0
-                self._play_current()
+                self._play_current(direction=1)
             return
 
         if self.player.is_playing():
@@ -363,19 +413,19 @@ class SonicVaultApp(ctk.CTk):
         if not self.songs:
             return
         self.current_index = (self.current_index - 1) % len(self.songs)
-        self._play_current()
+        self._play_current(direction=-1)
 
     def _next_song(self):
         if not self.songs:
             return
         self.current_index = (self.current_index + 1) % len(self.songs)
-        self._play_current()
+        self._play_current(direction=1)
 
     def _play_random(self):
         if not self.songs:
             return
         self.current_index = random.randint(0, len(self.songs) - 1)
-        self._play_current()
+        self._play_current(direction=1)
 
     def _set_volume(self, val):
         vol = float(val)
