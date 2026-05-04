@@ -79,7 +79,7 @@ class SonicVaultApp(ctk.CTk):
         self.search_entry.bind("<KeyRelease>", self._on_search)
 
         self.btn_folder = ctk.CTkButton(
-            self.top_frame, text="📁  Abrir Carpeta", width=130,
+            self.top_frame, text="📂 Abrir Carpeta", width=130,
             fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
             text_color=COLORS["text_primary"], font=("Roboto", 13, "bold"),
             corner_radius=10, height=34,
@@ -88,7 +88,7 @@ class SonicVaultApp(ctk.CTk):
         self.btn_folder.grid(row=0, column=1, padx=(0, 10), pady=10)
 
         self.btn_random = ctk.CTkButton(
-            self.top_frame, text="🎲  Random", width=110,
+            self.top_frame, text="🎲 Random", width=110,
             fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"],
             text_color=COLORS["text_primary"], font=("Roboto", 13),
             border_color=COLORS["accent"], border_width=1,
