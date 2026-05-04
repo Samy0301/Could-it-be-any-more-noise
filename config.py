@@ -1,69 +1,38 @@
-"""Configuración persistente y gestión de favoritos."""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Configuración persistente en JSON."""
+
 import json
 from pathlib import Path
+
 from utils import get_data_dir
+from constants import DEFAULT_CONFIG
 
 
 class AppConfig:
-    """Maneja config.json y favorites.json de forma centralizada."""
+    """Gestiona la configuración y favoritos guardados en disco."""
+
+    CONFIG_FILE = get_data_dir() / "config.json"
+    FAVORITES_FILE = get_data_dir() / "favorites.json"
 
     def __init__(self):
-        self._dir = get_data_dir()
-        self._config_path = self._dir / "config.json"
-        self._favorites_path = self._dir / "favorites.json"
+        self.config = self._load(self.CONFIG_FILE, DEFAULT_CONFIG)
+        self.favorites = self._load(self.FAVORITES_FILE, [])
 
-        self.last_folder: str = ""
-        self.theme: str = "Dark"
-        self.volume: float = 0.7
-        self.window_size: str = "1100x750"
-        self.show_favorites_only: bool = False
-
-        self.favorites: list[str] = []
-        self._load()
-
-    def _load(self):
-        # Configuración general
-        if self._config_path.exists():
+    @staticmethod
+    def _load(path: Path, default):
+        if path.exists():
             try:
-                data = json.loads(self._config_path.read_text(encoding="utf-8"))
-                for key in ("last_folder", "theme", "volume", "window_size", "show_favorites_only"):
-                    if key in data:
-                        setattr(self, key, data[key])
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
             except Exception:
                 pass
+        return default
 
-        # Favoritos
-        if self._favorites_path.exists():
-            try:
-                self.favorites = json.loads(self._favorites_path.read_text(encoding="utf-8"))
-            except Exception:
-                self.favorites = []
+    def save_config(self):
+        with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.config, f, indent=2, ensure_ascii=False)
 
-    def save(self):
-        """Guarda configuración y favoritos en disco."""
-        config_data = {
-            "last_folder": self.last_folder,
-            "theme": self.theme,
-            "volume": self.volume,
-            "window_size": self.window_size,
-            "show_favorites_only": self.show_favorites_only,
-        }
-        self._config_path.write_text(
-            json.dumps(config_data, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-        self._favorites_path.write_text(
-            json.dumps(self.favorites, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-
-    def is_favorite(self, path: str) -> bool:
-        return path in self.favorites
-
-    def toggle_favorite(self, path: str) -> bool:
-        """Añade o quita de favoritos. Devuelve True si ahora es favorito."""
-        if path in self.favorites:
-            self.favorites.remove(path)
-            return False
-        self.favorites.append(path)
-        return True
+    def save_favorites(self):
+        with open(self.FAVORITES_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.favorites, f, indent=2, ensure_ascii=False)

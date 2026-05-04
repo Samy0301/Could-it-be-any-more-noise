@@ -1,73 +1,77 @@
-"""Extracción de metadatos de archivos de audio soportados."""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Extracción de metadatos de archivos de audio."""
+
 from pathlib import Path
 
-SUPPORTED_EXTS = (".mp3", ".flac", ".wav", ".ogg", ".m4a", ".mp4")
+from mutagen.mp3 import MP3
+from mutagen.flac import FLAC
+from mutagen.wave import WAVE
+from mutagen.oggvorbis import OggVorbis
+from mutagen.mp4 import MP4
+
+from constants import SUPPORTED_EXTENSIONS
 
 
 class AudioMetadata:
     """Representa los metadatos de una pista de audio."""
 
     def __init__(self, filepath: str):
-        self.path: str = filepath
-        self.title: str = Path(filepath).stem
-        self.artist: str = "Artista desconocido"
-        self.album: str = "Álbum desconocido"
-        self.duration: float = 0.0
-        self.cover: bytes | None = None
+        self.path = filepath
+        self.title = Path(filepath).stem
+        self.artist = "Artista desconocido"
+        self.album = "Álbum desconocido"
+        self.year = ""
+        self.genre = ""
+        self.duration = 0.0
+        self.cover = None
         self._extract()
 
     def _extract(self):
         ext = Path(self.path).suffix.lower()
         try:
             if ext == ".mp3":
-                self._from_mp3()
+                self._extract_mp3()
             elif ext == ".flac":
-                self._from_flac()
+                self._extract_flac()
             elif ext == ".wav":
-                self._from_wav()
+                self._extract_wav()
             elif ext == ".ogg":
-                self._from_ogg()
+                self._extract_ogg()
             elif ext in (".m4a", ".mp4"):
-                self._from_m4a()
+                self._extract_m4a()
         except Exception:
             pass
 
-    def _from_mp3(self):
-        from mutagen.mp3 import MP3
+    def _extract_mp3(self):
         audio = MP3(self.path)
         self.duration = audio.info.length
         if audio.tags:
             self.title = self._tag(audio.tags, "TIT2", self.title)
-            self.artist = self._tag(audio.tags, "TPE1", self.artist)
-            self.album = self._tag(audio.tags, "TALB", self.album)
+            self.artist = self._tag(audio.tags, "TPE1", "Artista desconocido")
+            self.album = self._tag(audio.tags, "TALB", "Álbum desconocido")
 
-    def _from_flac(self):
-        from mutagen.flac import FLAC
+    def _extract_flac(self):
         audio = FLAC(self.path)
         self.duration = audio.info.length
-        if audio.tags:
-            self.title = audio.get("title", [self.title])[0]
-            self.artist = audio.get("artist", [self.artist])[0]
-            self.album = audio.get("album", [self.album])[0]
+        self.title = self._tag(audio, "title", self.title)
+        self.artist = self._tag(audio, "artist", "Artista desconocido")
+        self.album = self._tag(audio, "album", "Álbum desconocido")
         if audio.pictures:
             self.cover = audio.pictures[0].data
 
-    def _from_wav(self):
-        from mutagen.wave import WAVE
+    def _extract_wav(self):
         audio = WAVE(self.path)
         self.duration = audio.info.length
 
-    def _from_ogg(self):
-        from mutagen.oggvorbis import OggVorbis
+    def _extract_ogg(self):
         audio = OggVorbis(self.path)
         self.duration = audio.info.length
-        if audio.tags:
-            self.title = audio.get("title", [self.title])[0]
-            self.artist = audio.get("artist", [self.artist])[0]
-            self.album = audio.get("album", [self.album])[0]
+        self.title = self._tag(audio, "title", self.title)
+        self.artist = self._tag(audio, "artist", "Artista desconocido")
+        self.album = self._tag(audio, "album", "Álbum desconocido")
 
-    def _from_m4a(self):
-        from mutagen.mp4 import MP4
+    def _extract_m4a(self):
         audio = MP4(self.path)
         self.duration = audio.info.length
         if "\xa9nam" in audio:
@@ -78,14 +82,13 @@ class AudioMetadata:
             self.album = str(audio["\xa9alb"][0])
 
     @staticmethod
-    def _tag(tags, key: str, default: str) -> str:
-        val = tags.get(key)
-        return str(val[0]) if val else default
+    def _tag(audio_obj, key: str, default: str) -> str:
+        """Extrae un tag de forma segura."""
+        if hasattr(audio_obj, "get"):
+            values = audio_obj.get(key, [default])
+            return str(values[0]) if values else default
+        return default
 
-    @property
-    def formatted_duration(self) -> str:
+    def format_duration(self) -> str:
         m, s = divmod(int(self.duration), 60)
         return f"{m:02d}:{s:02d}"
-
-    def __repr__(self) -> str:
-        return f"AudioMetadata({self.title!r} — {self.artist!r})"
