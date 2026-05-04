@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SonicVault 🎵 — Controles centrados | Tiempos a los lados del slider
+SonicVault 🎵 — Optimizado: sin parpadeos, sin reconstrucción constante
 """
 
 import random
@@ -35,6 +35,12 @@ class SonicVaultApp(ctk.CTk):
 
         self.play_mode = self.config.config.get("play_mode", "queue")
 
+        # Drag & Drop
+        self._drag_start_y = 0
+        self._drag_start_index = -1
+        self._drag_active = False
+        self._drag_moved = False
+
         self.title("SonicVault 🎵")
         self.geometry(self.config.config.get("window_size", "1000x700"))
         self.minsize(900, 600)
@@ -47,6 +53,9 @@ class SonicVaultApp(ctk.CTk):
         if last and Path(last).exists():
             self._load_folder(last)
 
+    # ========================================================================
+    # CONSTRUCCIÓN DE UI
+    # ========================================================================
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -119,7 +128,7 @@ class SonicVaultApp(ctk.CTk):
 
         self.scroll_frame = ctk.CTkScrollableFrame(
             self.list_frame,
-            label_text="  📀  Biblioteca  ",
+            label_text="  📀  Biblioteca  (arrastra para ordenar)  ",
             label_font=("Roboto", 16, "bold"),
             label_text_color=COLORS["text_primary"],
             label_fg_color=COLORS["bg_tertiary"],
@@ -175,13 +184,13 @@ class SonicVaultApp(ctk.CTk):
         )
         self.lbl_album.pack(pady=(0, 12))
 
-        # Controls (botones centrados con grid)
+        # Controls
         self.controls_frame = ctk.CTkFrame(
             self.player_frame, fg_color="transparent"
         )
         self.controls_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
-        self.controls_frame.grid_columnconfigure(0, weight=1)  # espacio izquierdo
-        self.controls_frame.grid_columnconfigure(4, weight=1)  # espacio derecho
+        self.controls_frame.grid_columnconfigure(0, weight=1)
+        self.controls_frame.grid_columnconfigure(4, weight=1)
 
         btn_style = {
             "fg_color": COLORS["accent"],
@@ -213,14 +222,14 @@ class SonicVaultApp(ctk.CTk):
         )
         self.btn_next.grid(row=0, column=3, padx=6)
 
-        # Progress frame: tiempo actual | slider | tiempo total
+        # Progress
         self.progress_frame = ctk.CTkFrame(
             self.player_frame, fg_color="transparent"
         )
         self.progress_frame.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 6))
-        self.progress_frame.grid_columnconfigure(0, weight=0)   # tiempo actual
-        self.progress_frame.grid_columnconfigure(1, weight=1)   # slider
-        self.progress_frame.grid_columnconfigure(2, weight=0)   # tiempo total
+        self.progress_frame.grid_columnconfigure(0, weight=0)
+        self.progress_frame.grid_columnconfigure(1, weight=1)
+        self.progress_frame.grid_columnconfigure(2, weight=0)
 
         self.lbl_time_current = ctk.CTkLabel(
             self.progress_frame, text="00:00",
@@ -258,7 +267,7 @@ class SonicVaultApp(ctk.CTk):
         self.vol_slider.grid(row=4, column=0, sticky="ew", padx=15, pady=(0, 15))
         self.player.set_volume(self.vol_slider.get())
 
-        # Status bar
+        # Status
         self.status = ctk.CTkLabel(
             self, text="✦ Listo",
             font=("Roboto", 12), text_color=COLORS["text_secondary"],
@@ -267,6 +276,89 @@ class SonicVaultApp(ctk.CTk):
         self.status.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 12))
 
         self._update_loop()
+
+    # ========================================================================
+    # DRAG & DROP
+    # ========================================================================
+    def _get_widget_index_at_y(self, y: int) -> int:
+        if not self.list_widgets:
+            return -1
+        
+        scroll_y = self.scroll_frame.winfo_rooty()
+        relative_y = y - scroll_y
+        
+        best_idx = 0
+        best_dist = float('inf')
+        
+        for idx, (row, _) in enumerate(self.list_widgets):
+            row_y = row.winfo_y()
+            row_h = row.winfo_height()
+            center = row_y + row_h // 2
+            dist = abs(relative_y - center)
+            if dist < best_dist:
+                best_dist = dist
+                best_idx = idx
+        
+        return best_idx
+
+    def _on_drag_press(self, event, index: int):
+        self._drag_start_y = event.y_root
+        self._drag_start_index = index
+        self._drag_active = True
+        self._drag_moved = False
+
+    def _on_drag_motion(self, event):
+        if not self._drag_active:
+            return
+        
+        delta = abs(event.y_root - self._drag_start_y)
+        if delta > 5 and not self._drag_moved:
+            self._drag_moved = True
+            if 0 <= self._drag_start_index < len(self.list_widgets):
+                row, _ = self.list_widgets[self._drag_start_index]
+                row.configure(fg_color=COLORS["accent_bright"])
+
+    def _on_drag_release(self, event):
+        if not self._drag_active:
+            return
+        
+        if self._drag_moved and self._drag_start_index != -1:
+            target_idx = self._get_widget_index_at_y(event.y_root)
+            
+            if target_idx != -1 and target_idx != self._drag_start_index:
+                self._move_item(self._drag_start_index, target_idx)
+                self.status.configure(
+                    text=f"✦ Movido a posición {target_idx + 1}"
+                )
+        
+        self._drag_active = False
+        self._drag_moved = False
+        self._drag_start_index = -1
+        # Solo actualizar estilos, NO destruir widgets
+        self._update_list_appearance()
+
+    def _move_item(self, from_idx: int, to_idx: int):
+        if from_idx == to_idx:
+            return
+        
+        item = self.filtered_songs.pop(from_idx)
+        self.filtered_songs.insert(to_idx, item)
+        self._sync_songs_from_filtered()
+
+    def _sync_songs_from_filtered(self):
+        filtered_paths = {s.path: i for i, s in enumerate(self.filtered_songs)}
+        self.songs.sort(key=lambda s: filtered_paths.get(s.path, 999999))
+        
+        if 0 <= self.current_index < len(self.songs):
+            current_path = self.songs[self.current_index].path
+            for i, s in enumerate(self.filtered_songs):
+                if s.path == current_path:
+                    old_idx = self.current_index
+                    self.current_index = i
+                    for h in range(len(self.play_history)):
+                        if self.play_history[h] == old_idx:
+                            self.play_history[h] = i
+                    break
 
     # ========================================================================
     # MODO DE REPRODUCCIÓN
@@ -310,7 +402,7 @@ class SonicVaultApp(ctk.CTk):
             self.history_index = len(self.play_history) - 1
 
     # ========================================================================
-    # ESTILOS DE LISTA / HIGHLIGHT
+    # ESTILOS DE LISTA / HIGHLIGHT (sin destruir widgets)
     # ========================================================================
     def _set_row_style(self, row: ctk.CTkFrame, lbl: ctk.CTkLabel, is_playing: bool):
         row.is_playing = is_playing
@@ -345,8 +437,23 @@ class SonicVaultApp(ctk.CTk):
             else:
                 self._set_row_style(row, lbl, is_playing=False)
 
+    def _update_list_appearance(self):
+        """Actualiza texto y colores sin destruir widgets."""
+        for idx, (row, lbl) in enumerate(self.list_widgets):
+            if idx < len(self.filtered_songs):
+                meta = self.filtered_songs[idx]
+                lbl.configure(
+                    text=f"{meta.title}  —  {meta.artist}  ({meta.format_duration()})"
+                )
+                row.meta_path = meta.path
+                row.grid()
+            else:
+                row.grid_remove()
+        
+        self._highlight_current_song()
+
     # ========================================================================
-    # CARPETA Y LISTA
+    # CARPETA Y LISTA (construcción lazy)
     # ========================================================================
     def _select_folder(self):
         folder = filedialog.askdirectory()
@@ -369,10 +476,12 @@ class SonicVaultApp(ctk.CTk):
                 self.songs.append(AudioMetadata(str(f)))
 
         self.filtered_songs = self.songs.copy()
-        self._render_list()
+        # Destruir y reconstruir SOLO al cargar nueva carpeta
+        self._rebuild_list()
         self.status.configure(text=f"✦ {len(self.songs)} canciones cargadas")
 
-    def _render_list(self):
+    def _rebuild_list(self):
+        """Destruye y reconstruye la lista. Usar solo al cargar carpeta."""
         for row, lbl in self.list_widgets:
             row.destroy()
         self.list_widgets.clear()
@@ -382,7 +491,8 @@ class SonicVaultApp(ctk.CTk):
                 self.scroll_frame,
                 fg_color=COLORS["bg_tertiary"],
                 corner_radius=8,
-                border_color=COLORS["border"], border_width=1
+                border_color=COLORS["border"], border_width=1,
+                cursor="hand2"
             )
             row.grid(sticky="ew", pady=3, padx=2)
             row.grid_columnconfigure(0, weight=1)
@@ -396,19 +506,38 @@ class SonicVaultApp(ctk.CTk):
             )
             lbl.grid(row=0, column=0, sticky="w", padx=12, pady=10)
 
-            row.bind("<Button-1>", lambda e, i=idx: self._select_song(i))
-            lbl.bind("<Button-1>", lambda e, i=idx: self._select_song(i))
+            # Click simple
+            row.bind("<ButtonRelease-1>", lambda e, i=idx: self._on_row_release(e, i))
+            lbl.bind("<ButtonRelease-1>", lambda e, i=idx: self._on_row_release(e, i))
 
+            # Hover
             row.bind("<Enter>", lambda e, r=row, l=lbl: self._on_row_enter(r, l))
             row.bind("<Leave>", lambda e, r=row, l=lbl: self._on_row_leave(r, l))
             lbl.bind("<Enter>", lambda e, r=row, l=lbl: self._on_row_enter(r, l))
             lbl.bind("<Leave>", lambda e, r=row, l=lbl: self._on_row_leave(r, l))
+
+            # Drag bindings
+            row.bind("<ButtonPress-1>", lambda e, i=idx: self._on_drag_press(e, i))
+            row.bind("<B1-Motion>", self._on_drag_motion)
+            lbl.bind("<ButtonPress-1>", lambda e, i=idx: self._on_drag_press(e, i))
+            lbl.bind("<B1-Motion>", self._on_drag_motion)
 
             self.list_widgets.append((row, lbl))
 
         if self.player.is_playing() or self.player.is_paused():
             self._highlight_current_song()
 
+    def _on_row_release(self, event, idx: int):
+        if self._drag_moved:
+            return
+        self._select_song(idx)
+
+    def _setup_global_drag(self):
+        self.bind_all("<ButtonRelease-1>", lambda e: self._on_drag_release(e))
+
+    # ========================================================================
+    # BÚSQUEDA (solo filtra, no reconstruye)
+    # ========================================================================
     def _on_search(self, event=None):
         query = self.search_entry.get().lower()
         if not query:
@@ -420,7 +549,8 @@ class SonicVaultApp(ctk.CTk):
                 or query in s.artist.lower()
                 or query in s.album.lower()
             ]
-        self._render_list()
+        # Solo actualizar apariencia, no destruir widgets
+        self._update_list_appearance()
 
     # ========================================================================
     # REPRODUCCIÓN
@@ -541,7 +671,6 @@ class SonicVaultApp(ctk.CTk):
             pos = self.player.get_pos()
             dur = self.songs[self.current_index].duration
 
-            # Tiempos a los lados del slider
             self.lbl_time_current.configure(text=self._fmt(pos))
             self.lbl_time_total.configure(text=self._fmt(dur))
 
@@ -572,4 +701,5 @@ class SonicVaultApp(ctk.CTk):
 
 if __name__ == "__main__":
     app = SonicVaultApp()
+    app._setup_global_drag()
     app.mainloop()
