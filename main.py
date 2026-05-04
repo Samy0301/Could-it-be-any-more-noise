@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SonicVault 🎵 — Modo Aleatorio con historial (Prev vuelve atrás, Next avanza/nuevo)
+SonicVault 🎵 — Controles centrados | Tiempos a los lados del slider
 """
 
 import random
@@ -29,7 +29,6 @@ class SonicVaultApp(ctk.CTk):
         self.after_id = None
         self._is_seeking = False
 
-        # Historial de reproducción para modo aleatorio
         self.play_history: list[int] = []
         self.history_index = -1
         self._error_count = 0
@@ -48,9 +47,6 @@ class SonicVaultApp(ctk.CTk):
         if last and Path(last).exists():
             self._load_folder(last)
 
-    # ========================================================================
-    # CONSTRUCCIÓN DE UI
-    # ========================================================================
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -79,7 +75,7 @@ class SonicVaultApp(ctk.CTk):
         self.search_entry.bind("<KeyRelease>", self._on_search)
 
         self.btn_folder = ctk.CTkButton(
-            self.top_frame, text="📂 Abrir Carpeta", width=130,
+            self.top_frame, text="📁  Abrir Carpeta", width=130,
             fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
             text_color=COLORS["text_primary"], font=("Roboto", 13, "bold"),
             corner_radius=10, height=34,
@@ -88,7 +84,7 @@ class SonicVaultApp(ctk.CTk):
         self.btn_folder.grid(row=0, column=1, padx=(0, 10), pady=10)
 
         self.btn_random = ctk.CTkButton(
-            self.top_frame, text="🎲 Random", width=110,
+            self.top_frame, text="🎲  Random", width=110,
             fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"],
             text_color=COLORS["text_primary"], font=("Roboto", 13),
             border_color=COLORS["accent"], border_width=1,
@@ -112,7 +108,7 @@ class SonicVaultApp(ctk.CTk):
         self.content_frame.grid_columnconfigure(1, minsize=350)
         self.content_frame.grid_rowconfigure(0, weight=1)
 
-        # -- Izquierda: Lista de temas --
+        # -- Izquierda: Lista --
         self.list_frame = ctk.CTkFrame(
             self.content_frame, fg_color=COLORS["bg_secondary"],
             border_color=COLORS["border"], border_width=1, corner_radius=16
@@ -179,11 +175,13 @@ class SonicVaultApp(ctk.CTk):
         )
         self.lbl_album.pack(pady=(0, 12))
 
-        # Controls
+        # Controls (botones centrados con grid)
         self.controls_frame = ctk.CTkFrame(
             self.player_frame, fg_color="transparent"
         )
         self.controls_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
+        self.controls_frame.grid_columnconfigure(0, weight=1)  # espacio izquierdo
+        self.controls_frame.grid_columnconfigure(4, weight=1)  # espacio derecho
 
         btn_style = {
             "fg_color": COLORS["accent"],
@@ -198,7 +196,7 @@ class SonicVaultApp(ctk.CTk):
             self.controls_frame, text="⏮", width=50, **btn_style,
             command=self._prev_song
         )
-        self.btn_prev.pack(side="left", padx=6)
+        self.btn_prev.grid(row=0, column=1, padx=6)
 
         self.btn_play = ctk.CTkButton(
             self.controls_frame, text="▶", width=70,
@@ -207,30 +205,46 @@ class SonicVaultApp(ctk.CTk):
             corner_radius=12, height=42,
             command=self._toggle_play
         )
-        self.btn_play.pack(side="left", padx=8)
+        self.btn_play.grid(row=0, column=2, padx=8)
 
         self.btn_next = ctk.CTkButton(
             self.controls_frame, text="⏭", width=50, **btn_style,
             command=self._next_song
         )
-        self.btn_next.pack(side="left", padx=6)
+        self.btn_next.grid(row=0, column=3, padx=6)
 
-        self.lbl_time = ctk.CTkLabel(
-            self.controls_frame, text="00:00 / 00:00",
-            font=("Roboto", 13), text_color=COLORS["text_secondary"]
+        # Progress frame: tiempo actual | slider | tiempo total
+        self.progress_frame = ctk.CTkFrame(
+            self.player_frame, fg_color="transparent"
         )
-        self.lbl_time.pack(side="right", padx=10)
+        self.progress_frame.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 6))
+        self.progress_frame.grid_columnconfigure(0, weight=0)   # tiempo actual
+        self.progress_frame.grid_columnconfigure(1, weight=1)   # slider
+        self.progress_frame.grid_columnconfigure(2, weight=0)   # tiempo total
 
-        # Progress slider
+        self.lbl_time_current = ctk.CTkLabel(
+            self.progress_frame, text="00:00",
+            font=("Roboto", 12), text_color=COLORS["text_secondary"],
+            width=42
+        )
+        self.lbl_time_current.grid(row=0, column=0, padx=(0, 8))
+
         self.progress = ctk.CTkSlider(
-            self.player_frame, from_=0, to=1000, state="disabled",
+            self.progress_frame, from_=0, to=1000, state="disabled",
             fg_color=COLORS["bg_tertiary"], progress_color=COLORS["accent"],
             button_color=COLORS["accent_bright"], button_hover_color=COLORS["accent_hover"],
             height=16, corner_radius=8
         )
-        self.progress.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 6))
+        self.progress.grid(row=0, column=1, sticky="ew")
         self.progress.bind("<ButtonPress-1>", lambda e: setattr(self, "_is_seeking", True))
         self.progress.bind("<ButtonRelease-1>", self._on_seek)
+
+        self.lbl_time_total = ctk.CTkLabel(
+            self.progress_frame, text="00:00",
+            font=("Roboto", 12), text_color=COLORS["text_secondary"],
+            width=42
+        )
+        self.lbl_time_total.grid(row=0, column=2, padx=(8, 0))
 
         # Volume
         self.vol_slider = ctk.CTkSlider(
@@ -258,7 +272,6 @@ class SonicVaultApp(ctk.CTk):
     # MODO DE REPRODUCCIÓN
     # ========================================================================
     def _update_mode_button(self):
-        """Ambos modos con fondo oscuro; solo el hover brilla."""
         if self.play_mode == "shuffle":
             self.btn_mode.configure(
                 text="🔀  Aleatorio",
@@ -287,10 +300,9 @@ class SonicVaultApp(ctk.CTk):
         )
 
     # ========================================================================
-    # HISTORIAL DE REPRODUCCIÓN
+    # HISTORIAL
     # ========================================================================
     def _add_to_history(self, index: int):
-        """Añade un índice al historial, truncando el 'futuro' si estábamos navegando atrás."""
         if self.history_index < len(self.play_history) - 1:
             self.play_history = self.play_history[:self.history_index + 1]
         if not self.play_history or self.play_history[-1] != index:
@@ -432,14 +444,13 @@ class SonicVaultApp(ctk.CTk):
         try:
             self.player.load(meta.path)
             self.player.play()
-            self._error_count = 0  # Reset al tener éxito
+            self._error_count = 0
         except Exception as e:
             self._error_count += 1
             self.status.configure(text=f"✦ Error ({self._error_count}): {str(e)[:50]}")
             if self._error_count >= 5:
                 self.status.configure(text="✦ Demasiados errores, detenido")
                 return
-            # Retry rápido: 200ms en vez de 1000ms
             if direction == -1:
                 self.after(200, self._prev_song)
             else:
@@ -494,12 +505,10 @@ class SonicVaultApp(ctk.CTk):
             return
         if self.play_mode == "shuffle":
             if self.history_index < len(self.play_history) - 1:
-                # Avanzar en el historial (futuro)
                 self.history_index += 1
                 self.current_index = self.play_history[self.history_index]
                 self._play_current(direction=1)
             else:
-                # Nuevo tema aleatorio
                 self.current_index = random.randint(0, len(self.songs) - 1)
                 self._add_to_history(self.current_index)
                 self._play_current(direction=1)
@@ -532,7 +541,9 @@ class SonicVaultApp(ctk.CTk):
             pos = self.player.get_pos()
             dur = self.songs[self.current_index].duration
 
-            self.lbl_time.configure(text=f"{self._fmt(pos)} / {self._fmt(dur)}")
+            # Tiempos a los lados del slider
+            self.lbl_time_current.configure(text=self._fmt(pos))
+            self.lbl_time_total.configure(text=self._fmt(dur))
 
             if dur > 0:
                 self.progress.set(int((pos / dur) * 1000))
@@ -540,7 +551,7 @@ class SonicVaultApp(ctk.CTk):
             if self.player.is_finished() and not self.player.is_paused():
                 self._next_song()
 
-        self.after_id = self.after(100, self._update_loop)  # <-- antes 500, ahora 100
+        self.after_id = self.after(100, self._update_loop)
 
     @staticmethod
     def _fmt(seconds: float) -> str:
