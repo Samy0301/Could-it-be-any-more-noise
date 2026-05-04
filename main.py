@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SonicVault 🎵 — Edición Purple Haze
+SonicVault 🎵 — Lista izquierda | Reproducción derecha (ancho fijo)
 """
 
 import random
@@ -29,7 +29,6 @@ class SonicVaultApp(ctk.CTk):
         self.after_id = None
         self._is_seeking = False
 
-        # Configuración ventana
         self.title("SonicVault 🎵")
         self.geometry(self.config.config.get("window_size", "1000x700"))
         self.minsize(900, 600)
@@ -42,9 +41,6 @@ class SonicVaultApp(ctk.CTk):
         if last and Path(last).exists():
             self._load_folder(last)
 
-    # ========================================================================
-    # UI BUILDER
-    # ========================================================================
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -96,16 +92,43 @@ class SonicVaultApp(ctk.CTk):
             self, fg_color="transparent"
         )
         self.content_frame.grid(row=1, column=0, sticky="nsew", padx=15, pady=5)
-        self.content_frame.grid_columnconfigure(0, weight=2)
-        self.content_frame.grid_columnconfigure(1, weight=3)
+        # Solo la columna 0 (lista) crece. La columna 1 (reproducción) es ancho fijo.
+        self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.grid_rowconfigure(0, weight=1)
 
-        # -- Left: Now Playing --
-        self.left_frame = ctk.CTkFrame(
+        # -- Left: Song List --
+        self.right_frame = ctk.CTkFrame(
             self.content_frame, fg_color=COLORS["bg_secondary"],
             border_color=COLORS["border"], border_width=1, corner_radius=16
         )
-        self.left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        self.right_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        self.right_frame.grid_rowconfigure(0, weight=1)
+        self.right_frame.grid_columnconfigure(0, weight=1)
+
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            self.right_frame,
+            label_text="  📀  Biblioteca  ",
+            label_font=("Roboto", 16, "bold"),
+            label_text_color=COLORS["text_primary"],
+            label_fg_color=COLORS["bg_tertiary"],
+            fg_color=COLORS["bg_secondary"],
+            corner_radius=12,
+            border_color=COLORS["border"], border_width=0
+        )
+        self.scroll_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.scroll_frame.grid_columnconfigure(0, weight=1)
+
+        self.list_widgets: list[ctk.CTkFrame] = []
+
+        # -- Right: Now Playing (ancho fijo = 280 portada + 40 márgenes) --
+        self.left_frame = ctk.CTkFrame(
+            self.content_frame, fg_color=COLORS["bg_secondary"],
+            border_color=COLORS["border"], border_width=1, corner_radius=16,
+            width=350  # <-- ANCHO FIJO exacto para la portada + paddings
+        )
+        self.left_frame.grid(row=0, column=1, sticky="ns")  # ns = solo vertical, no horizontal
+        self.left_frame.grid_propagate(False)  # <-- Mantiene el ancho fijo sin importar el contenido
+        self.content_frame.grid_columnconfigure(1, minsize=350)
         self.left_frame.grid_rowconfigure(0, weight=1)
         self.left_frame.grid_rowconfigure(1, weight=0)
 
@@ -113,7 +136,7 @@ class SonicVaultApp(ctk.CTk):
         self.cover_label = ctk.CTkLabel(
             self.left_frame, text="", fg_color="transparent"
         )
-        self.cover_label.grid(row=0, column=0, padx=20, pady=20, sticky="n")
+        self.cover_label.grid(row=0, column=0, padx=35, pady=20, sticky="n")
 
         # Info
         self.info_frame = ctk.CTkFrame(
@@ -205,30 +228,6 @@ class SonicVaultApp(ctk.CTk):
         self.vol_slider.set(self.config.config.get("volume", 0.7))
         self.vol_slider.grid(row=4, column=0, sticky="ew", padx=15, pady=(0, 15))
         self.player.set_volume(self.vol_slider.get())
-
-        # -- Right: Song List --
-        self.right_frame = ctk.CTkFrame(
-            self.content_frame, fg_color=COLORS["bg_secondary"],
-            border_color=COLORS["border"], border_width=1, corner_radius=16
-        )
-        self.right_frame.grid(row=0, column=1, sticky="nsew")
-        self.right_frame.grid_rowconfigure(0, weight=1)
-        self.right_frame.grid_columnconfigure(0, weight=1)
-
-        self.scroll_frame = ctk.CTkScrollableFrame(
-            self.right_frame,
-            label_text="  📀  Biblioteca  ",
-            label_font=("Roboto", 16, "bold"),
-            label_text_color=COLORS["text_primary"],
-            label_fg_color=COLORS["bg_tertiary"],
-            fg_color=COLORS["bg_secondary"],
-            corner_radius=12,
-            border_color=COLORS["border"], border_width=0
-        )
-        self.scroll_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        self.scroll_frame.grid_columnconfigure(0, weight=1)
-
-        self.list_widgets: list[ctk.CTkFrame] = []
 
         # Status bar
         self.status = ctk.CTkLabel(
