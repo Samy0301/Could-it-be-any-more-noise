@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SonicVault 🎵 — Optimizado: sin parpadeos, sin reconstrucción constante
+SonicVault 🎵 — Drag & Drop con tracking correcto del tema en reproducción
 """
 
 import random
@@ -25,11 +25,12 @@ class SonicVaultApp(ctk.CTk):
         self.cover_gen = CoverGenerator((280, 280))
         self.songs: list[AudioMetadata] = []
         self.filtered_songs: list[AudioMetadata] = []
-        self.current_index = -1
+        self.current_index = -1          # Índice en self.songs del tema SONANDO
+        self.current_filtered_index = -1 # Índice en self.filtered_songs del tema SONANDO
         self.after_id = None
         self._is_seeking = False
 
-        self.play_history: list[int] = []
+        self.play_history: list[int] = []  # Guarda índices de self.songs
         self.history_index = -1
         self._error_count = 0
 
@@ -314,9 +315,16 @@ class SonicVaultApp(ctk.CTk):
         delta = abs(event.y_root - self._drag_start_y)
         if delta > 5 and not self._drag_moved:
             self._drag_moved = True
+            # Visual de arrastre: borde brillante, NO cambiar highlight de reproducción
             if 0 <= self._drag_start_index < len(self.list_widgets):
-                row, _ = self.list_widgets[self._drag_start_index]
-                row.configure(fg_color=COLORS["accent_bright"])
+                row, lbl = self.list_widgets[self._drag_start_index]
+                # Solo si NO es el que está reproduciendo
+                if self._drag_start_index != self.current_filtered_index:
+                    row.configure(
+                        fg_color=COLORS["bg_tertiary"],
+                        border_color=COLORS["accent_bright"],
+                        border_width=2
+                    )
 
     def _on_drag_release(self, event):
         if not self._drag_active:
@@ -338,26 +346,40 @@ class SonicVaultApp(ctk.CTk):
         self._update_list_appearance()
 
     def _move_item(self, from_idx: int, to_idx: int):
+        """Mueve un elemento y actualiza el índice del tema en reproducción."""
         if from_idx == to_idx:
             return
         
+        # Guardar qué tema está sonando antes de mover
+        playing_path = None
+        if 0 <= self.current_filtered_index < len(self.filtered_songs):
+            playing_path = self.filtered_songs[self.current_filtered_index].path
+        
+        # Mover en filtered_songs
         item = self.filtered_songs.pop(from_idx)
         self.filtered_songs.insert(to_idx, item)
+        
+        # Recalcular dónde quedó el tema que sonaba
+        if playing_path:
+            for i, s in enumerate(self.filtered_songs):
+                if s.path == playing_path:
+                    self.current_filtered_index = i
+                    break
+        
+        # Sincronizar con songs
         self._sync_songs_from_filtered()
 
     def _sync_songs_from_filtered(self):
+        """Reordena songs según filtered y actualiza current_index."""
         filtered_paths = {s.path: i for i, s in enumerate(self.filtered_songs)}
         self.songs.sort(key=lambda s: filtered_paths.get(s.path, 999999))
         
-        if 0 <= self.current_index < len(self.songs):
-            current_path = self.songs[self.current_index].path
-            for i, s in enumerate(self.filtered_songs):
-                if s.path == current_path:
-                    old_idx = self.current_index
+        # Actualizar current_index al nuevo índice en songs del tema sonando
+        if 0 <= self.current_filtered_index < len(self.filtered_songs):
+            playing_path = self.filtered_songs[self.current_filtered_index].path
+            for i, s in enumerate(self.songs):
+                if s.path == playing_path:
                     self.current_index = i
-                    for h in range(len(self.play_history)):
-                        if self.play_history[h] == old_idx:
-                            self.play_history[h] = i
                     break
 
     # ========================================================================
@@ -404,41 +426,59 @@ class SonicVaultApp(ctk.CTk):
     # ========================================================================
     # ESTILOS DE LISTA / HIGHLIGHT (sin destruir widgets)
     # ========================================================================
-    def _set_row_style(self, row: ctk.CTkFrame, lbl: ctk.CTkLabel, is_playing: bool):
+    def _set_row_style(self, row: ctk.CTkFrame, lbl: ctk.CTkLabel, is_playing: bool, is_dragging: bool = False):
         row.is_playing = is_playing
-        if is_playing:
-            row.configure(fg_color=COLORS["accent"])
-            lbl.configure(text_color=COLORS["text_primary"])
+        if is_dragging:
+            # Visual de arrastre: borde brillante
+            row.configure(
+                fg_color=COLORS["bg_tertiary"],
+                border_color=COLORS["accent_bright"],
+                border_width=2
+            )
+        elif is_playing:
+            # Visual de reproducción: fondo acento
+            row.configure(
+                fg_color=COLORS["accent"],
+                border_color=COLORS["border"],
+                border_width=1
+            )
         else:
-            row.configure(fg_color=COLORS["bg_tertiary"])
-            lbl.configure(text_color=COLORS["text_primary"])
+            # Normal
+            row.configure(
+                fg_color=COLORS["bg_tertiary"],
+                border_color=COLORS["border"],
+                border_width=1
+            )
+        lbl.configure(text_color=COLORS["text_primary"])
 
     def _on_row_enter(self, row: ctk.CTkFrame, lbl: ctk.CTkLabel):
+        # No cambiar hover si está arrastrando
+        if self._drag_active:
+            return
         if getattr(row, "is_playing", False):
             row.configure(fg_color=COLORS["accent_hover"])
         else:
             row.configure(fg_color=COLORS["accent"])
 
     def _on_row_leave(self, row: ctk.CTkFrame, lbl: ctk.CTkLabel):
+        # No cambiar hover si está arrastrando
+        if self._drag_active:
+            return
         if getattr(row, "is_playing", False):
             row.configure(fg_color=COLORS["accent"])
         else:
             row.configure(fg_color=COLORS["bg_tertiary"])
 
-    def _highlight_current_song(self):
-        current_meta = (
-            self.songs[self.current_index]
-            if 0 <= self.current_index < len(self.songs)
-            else None
-        )
-        for row, lbl in self.list_widgets:
-            if current_meta and getattr(row, "meta_path", None) == current_meta.path:
-                self._set_row_style(row, lbl, is_playing=True)
-            else:
-                self._set_row_style(row, lbl, is_playing=False)
-
     def _update_list_appearance(self):
-        """Actualiza texto y colores sin destruir widgets."""
+        """Actualiza texto, colores y tracking del tema en reproducción."""
+        # Recalcular current_filtered_index basado en current_index
+        if 0 <= self.current_index < len(self.songs):
+            playing_path = self.songs[self.current_index].path
+            for i, s in enumerate(self.filtered_songs):
+                if s.path == playing_path:
+                    self.current_filtered_index = i
+                    break
+        
         for idx, (row, lbl) in enumerate(self.list_widgets):
             if idx < len(self.filtered_songs):
                 meta = self.filtered_songs[idx]
@@ -446,11 +486,11 @@ class SonicVaultApp(ctk.CTk):
                     text=f"{meta.title}  —  {meta.artist}  ({meta.format_duration()})"
                 )
                 row.meta_path = meta.path
+                is_playing = (idx == self.current_filtered_index)
+                self._set_row_style(row, lbl, is_playing=is_playing)
                 row.grid()
             else:
                 row.grid_remove()
-        
-        self._highlight_current_song()
 
     # ========================================================================
     # CARPETA Y LISTA (construcción lazy)
@@ -467,16 +507,19 @@ class SonicVaultApp(ctk.CTk):
         self.update_idletasks()
 
         self.songs.clear()
+        self.filtered_songs.clear()
         self.play_history.clear()
         self.history_index = -1
         self._error_count = 0
+        self.current_index = -1
+        self.current_filtered_index = -1
+        
         path = Path(folder)
         for f in sorted(path.rglob("*")):
             if f.suffix.lower() in SUPPORTED_EXTENSIONS:
                 self.songs.append(AudioMetadata(str(f)))
 
         self.filtered_songs = self.songs.copy()
-        # Destruir y reconstruir SOLO al cargar nueva carpeta
         self._rebuild_list()
         self.status.configure(text=f"✦ {len(self.songs)} canciones cargadas")
 
@@ -524,8 +567,7 @@ class SonicVaultApp(ctk.CTk):
 
             self.list_widgets.append((row, lbl))
 
-        if self.player.is_playing() or self.player.is_paused():
-            self._highlight_current_song()
+        self._update_list_appearance()
 
     def _on_row_release(self, event, idx: int):
         if self._drag_moved:
@@ -549,7 +591,6 @@ class SonicVaultApp(ctk.CTk):
                 or query in s.artist.lower()
                 or query in s.album.lower()
             ]
-        # Solo actualizar apariencia, no destruir widgets
         self._update_list_appearance()
 
     # ========================================================================
@@ -561,6 +602,7 @@ class SonicVaultApp(ctk.CTk):
         meta = self.filtered_songs[filtered_idx]
         try:
             self.current_index = self.songs.index(meta)
+            self.current_filtered_index = filtered_idx
         except ValueError:
             return
         self._add_to_history(self.current_index)
@@ -600,12 +642,13 @@ class SonicVaultApp(ctk.CTk):
         self.progress.configure(state="normal")
         self.status.configure(text="✦ Reproduciendo")
 
-        self._highlight_current_song()
+        self._update_list_appearance()
 
     def _toggle_play(self):
         if not self.player.has_file():
             if self.songs:
                 self.current_index = 0
+                self.current_filtered_index = 0
                 self._add_to_history(self.current_index)
                 self._play_current(direction=1)
             return
@@ -624,10 +667,22 @@ class SonicVaultApp(ctk.CTk):
             if self.history_index > 0:
                 self.history_index -= 1
                 self.current_index = self.play_history[self.history_index]
+                # Recalcular current_filtered_index
+                playing_path = self.songs[self.current_index].path
+                for i, s in enumerate(self.filtered_songs):
+                    if s.path == playing_path:
+                        self.current_filtered_index = i
+                        break
                 self._play_current(direction=-1)
         else:
             self.current_index = (self.current_index - 1) % len(self.songs)
             self._add_to_history(self.current_index)
+            # Recalcular current_filtered_index
+            playing_path = self.songs[self.current_index].path
+            for i, s in enumerate(self.filtered_songs):
+                if s.path == playing_path:
+                    self.current_filtered_index = i
+                    break
             self._play_current(direction=-1)
 
     def _next_song(self):
@@ -637,14 +692,25 @@ class SonicVaultApp(ctk.CTk):
             if self.history_index < len(self.play_history) - 1:
                 self.history_index += 1
                 self.current_index = self.play_history[self.history_index]
-                self._play_current(direction=1)
             else:
                 self.current_index = random.randint(0, len(self.songs) - 1)
                 self._add_to_history(self.current_index)
-                self._play_current(direction=1)
+            # Recalcular current_filtered_index
+            playing_path = self.songs[self.current_index].path
+            for i, s in enumerate(self.filtered_songs):
+                if s.path == playing_path:
+                    self.current_filtered_index = i
+                    break
+            self._play_current(direction=1)
         else:
             self.current_index = (self.current_index + 1) % len(self.songs)
             self._add_to_history(self.current_index)
+            # Recalcular current_filtered_index
+            playing_path = self.songs[self.current_index].path
+            for i, s in enumerate(self.filtered_songs):
+                if s.path == playing_path:
+                    self.current_filtered_index = i
+                    break
             self._play_current(direction=1)
 
     def _play_random(self):
@@ -652,6 +718,12 @@ class SonicVaultApp(ctk.CTk):
             return
         self.current_index = random.randint(0, len(self.songs) - 1)
         self._add_to_history(self.current_index)
+        # Recalcular current_filtered_index
+        playing_path = self.songs[self.current_index].path
+        for i, s in enumerate(self.filtered_songs):
+            if s.path == playing_path:
+                self.current_filtered_index = i
+                break
         self._play_current(direction=0)
 
     def _set_volume(self, val):
