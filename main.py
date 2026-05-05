@@ -160,24 +160,34 @@ class SonicVaultApp(ctk.CTk):
         )
         self.cover_label.pack(pady=(20, 10))
 
+        # --- INFO FRAME: tamaño fijo, no se expande con el texto ---
         self.info_frame = ctk.CTkFrame(
-            self.display_frame, fg_color=COLORS["bg_tertiary"],
-            corner_radius=12
+            self.display_frame,
+            fg_color=COLORS["bg_tertiary"],
+            corner_radius=12,
+            width=310,
+            height=110
         )
-        self.info_frame.pack(fill="x", padx=15, pady=(0, 10))
+        self.info_frame.pack(pady=(0, 10))
+        self.info_frame.pack_propagate(False)
 
         self.lbl_title = ctk.CTkLabel(
-            self.info_frame, text="Sin reproducción",
-            font=("Roboto", 20, "bold"), text_color=COLORS["text_primary"],
+            self.info_frame,
+            text="Sin reproducción",
+            font=("Roboto", 18, "bold"),
+            text_color=COLORS["text_primary"],
             wraplength=280
         )
-        self.lbl_title.pack(pady=(14, 4))
+        self.lbl_title.pack(pady=(12, 2))
 
         self.lbl_artist = ctk.CTkLabel(
-            self.info_frame, text="Selecciona una carpeta",
-            font=("Roboto", 14), text_color=COLORS["text_secondary"]
+            self.info_frame,
+            text="Selecciona una carpeta",
+            font=("Roboto", 13),
+            text_color=COLORS["text_secondary"],
+            wraplength=280
         )
-        self.lbl_artist.pack(pady=(0, 14))
+        self.lbl_artist.pack(pady=(0, 12))
 
         # Controls
         self.controls_frame = ctk.CTkFrame(
@@ -545,7 +555,6 @@ class SonicVaultApp(ctk.CTk):
 
         self.lbl_title.configure(text=meta.title)
         self.lbl_artist.configure(text=meta.artist)
-        # --- SE ELIMINÓ la línea del álbum + duración ---
 
         img = self.cover_gen.get_image(meta)
         ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(280, 280))
