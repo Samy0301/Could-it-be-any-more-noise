@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from constants import SUPPORTED_EXTENSIONS, COLORS
+from constants import COLORS
 
 
 def get_app_dir() -> Path:
@@ -28,6 +28,8 @@ def get_data_dir() -> Path:
 @contextmanager
 def suppress_stderr():
     """Silencia warnings de librerías C (mpg123, etc.)."""
+    devnull = -1
+    old_stderr = -1
     try:
         devnull = os.open(os.devnull, os.O_WRONLY)
         old_stderr = os.dup(2)
@@ -36,12 +38,17 @@ def suppress_stderr():
     except Exception:
         yield
     finally:
-        try:
-            os.dup2(old_stderr, 2)
-            os.close(old_stderr)
-            os.close(devnull)
-        except Exception:
-            pass
+        if old_stderr >= 0:
+            try:
+                os.dup2(old_stderr, 2)
+                os.close(old_stderr)
+            except Exception:
+                pass
+        if devnull >= 0:
+            try:
+                os.close(devnull)
+            except Exception:
+                pass
 
 
 class CoverGenerator:

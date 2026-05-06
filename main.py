@@ -224,7 +224,7 @@ class SonicVaultApp(ctk.CTk):
         self.btn_prev.grid(row=0, column=1, padx=6)
 
         self.btn_play = ctk.CTkButton(
-            self.controls_frame, text="     ▶️", width=70,
+            self.controls_frame, text="▶️", width=70,
             fg_color=COLORS["accent_bright"], hover_color=COLORS["accent"],
             text_color=COLORS["bg_primary"], font=("Roboto", 18, "bold"),
             corner_radius=12, height=42,
@@ -285,7 +285,7 @@ class SonicVaultApp(ctk.CTk):
 
         # Status
         self.status = ctk.CTkLabel(
-            self, text="❇️ Done",
+            self, text="❇️ Ready",
             font=("Roboto", 12), text_color=COLORS["text_secondary"],
             anchor="w", fg_color="transparent"
         )
@@ -294,7 +294,7 @@ class SonicVaultApp(ctk.CTk):
         self._update_loop()
 
     # ========================================================================
-    # ATAJOS DE TECLADO (solo estos 4)
+    # ATAJOS DE TECLADO
     # ========================================================================
     def _bind_shortcuts(self):
         self.bind("<space>", self._shortcut_play_pause)
@@ -358,7 +358,7 @@ class SonicVaultApp(ctk.CTk):
             self._update_list_appearance()
 
     # ========================================================================
-    # MENÚ CONTEXTUAL — SIN "Reproducir ahora"
+    # MENÚ CONTEXTUAL
     # ========================================================================
     def _show_context_menu(self, event, filtered_idx: int):
         menu = Menu(self, tearoff=0, bg=COLORS["bg_secondary"],
@@ -373,7 +373,6 @@ class SonicVaultApp(ctk.CTk):
         menu.add_command(label=f"▶️  {meta.title[:40]}", state="disabled")
         menu.add_separator()
 
-        # --- SE ELIMINÓ "Reproducir ahora" ---
         menu.add_command(label="⏭️ Play Next",
                          command=lambda: self._add_to_up_next(filtered_idx))
         menu.add_command(
@@ -390,14 +389,14 @@ class SonicVaultApp(ctk.CTk):
     def _add_to_up_next(self, filtered_idx: int):
         meta = self.filtered_songs[filtered_idx]
         song_idx = self._song_path_to_idx.get(meta.path, -1)
-        
+
         if song_idx == self.current_index:
-            self.status.configure(text="❇️ Is Alreeady Playing")
+            self.status.configure(text="❇️ Is Already Playing")
             return
         if song_idx in self.up_next:
             self.status.configure(text="❇️ Is Already on the Queue")
             return
-        
+
         self.up_next.append(song_idx)
         self.status.configure(text=f"❇️ '{meta.title[:30]}' ➡️ Next")
         self._update_list_appearance()
@@ -444,7 +443,7 @@ class SonicVaultApp(ctk.CTk):
             self.history_index = len(self.play_history) - 1
 
     # ========================================================================
-    # ESTILOS DE FILA — Optimizados O(1)
+    # ESTILOS DE FILA
     # ========================================================================
     def _get_row_state(self, song_idx: int) -> str:
         if song_idx == self.current_index:
@@ -466,7 +465,7 @@ class SonicVaultApp(ctk.CTk):
             bg = COLORS["accent"] if hover else COLORS["bg_tertiary"]
             border = COLORS["border"]
             bw = 1
-        
+
         row.configure(fg_color=bg, border_color=border, border_width=bw)
         lbl.configure(text_color=COLORS["text_primary"])
 
@@ -493,11 +492,11 @@ class SonicVaultApp(ctk.CTk):
                 meta = self.filtered_songs[idx]
                 heart = "💜 " if self.config.is_favorite(meta.path) else ""
                 lbl.configure(text=f"{heart}{meta.title}  —  {meta.artist}  ({meta.format_duration()})")
-                
+
                 song_idx = self._song_path_to_idx.get(meta.path, -1)
                 row.song_idx = song_idx
                 state = self._get_row_state(song_idx)
-                
+
                 self._apply_row_style(row, lbl, state, hover=False)
                 row.grid()
             else:
@@ -524,14 +523,14 @@ class SonicVaultApp(ctk.CTk):
         self.history_index = -1
         self._error_count = 0
         self.current_index = -1
-        
+
         path = Path(folder)
         for f in sorted(path.rglob("*")):
             if f.suffix.lower() in SUPPORTED_EXTENSIONS:
                 self.songs.append(AudioMetadata(str(f)))
 
         self._song_path_to_idx = {meta.path: i for i, meta in enumerate(self.songs)}
-        
+
         self._apply_filters()
         self._rebuild_list()
         self.status.configure(text=f"❇️ {len(self.songs)} Songs Uploaded")
@@ -634,7 +633,7 @@ class SonicVaultApp(ctk.CTk):
             self._error_count += 1
             self.status.configure(text=f"❇️ Error ({self._error_count}): {str(e)[:50]}")
             if self._error_count >= 5:
-                self.status.configure(text="❇️ To Many Erros, Stopped")
+                self.status.configure(text="❇️ Too Many Errors, Stopped")
                 return
             if direction == -1:
                 self.after(200, self._prev_song)
@@ -687,13 +686,13 @@ class SonicVaultApp(ctk.CTk):
     def _next_song(self):
         if not self.songs:
             return
-        
+
         if self.up_next:
             self.current_index = self.up_next.pop(0)
             self._add_to_history(self.current_index)
             self._play_current(direction=1)
             return
-        
+
         if self.play_mode == "shuffle":
             if self.history_index < len(self.play_history) - 1:
                 self.history_index += 1
@@ -714,12 +713,12 @@ class SonicVaultApp(ctk.CTk):
         self._add_to_history(self.current_index)
         self._play_current(direction=0)
 
-    def _set_volume(self, val):
+    def _set_volume(self, val: float):
         vol = float(val)
         self.player.set_volume(vol)
         self.config.config["volume"] = vol
 
-    def _on_seek(self, event=None):
+    def _on_seek(self, _event=None):
         self._is_seeking = False
         if self.current_index >= 0 and self.songs:
             ratio = self.progress.get() / 1000
@@ -762,7 +761,3 @@ class SonicVaultApp(ctk.CTk):
 if __name__ == "__main__":
     app = SonicVaultApp()
     app.mainloop()
-
-
-
-

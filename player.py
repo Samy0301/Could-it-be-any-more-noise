@@ -6,7 +6,6 @@ import threading
 
 import soundfile as sf
 import sounddevice as sd
-import numpy as np
 
 from utils import suppress_stderr
 
@@ -33,7 +32,7 @@ class MusicPlayer:
         self.stop()
         self._file = filepath
         try:
-            with suppress_stderr():  # <-- SILENCIA WARNINGS DE mpg123
+            with suppress_stderr():
                 self._sf = sf.SoundFile(filepath, "r")
             self._samplerate = self._sf.samplerate
             self._channels = self._sf.channels

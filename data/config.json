@@ -3,5 +3,5 @@
   "theme": "Dark",
   "volume": 0.7,
   "window_size": "1000x700",
-  "play_mode": "shuffle"
+  "play_mode": "queue"
 }
