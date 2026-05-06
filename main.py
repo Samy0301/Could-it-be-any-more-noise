@@ -38,6 +38,7 @@ class SonicVaultApp(ctk.CTk):
 
         self._song_path_to_idx: dict[str, int] = {}
         self._search_after_id = None
+        self.showing_favorites = False
 
         self.title("SonicVault 🎵")
         self.geometry(self.config.config.get("window_size", "1000x700"))
@@ -105,8 +106,18 @@ class SonicVaultApp(ctk.CTk):
             font=("Roboto", 13), corner_radius=10, height=34,
             command=self._toggle_play_mode
         )
-        self.btn_mode.grid(row=0, column=3, padx=(0, 12), pady=10)
+        self.btn_mode.grid(row=0, column=3, padx=(0, 10), pady=10)
         self._update_mode_button()
+
+        self.btn_favorites = ctk.CTkButton(
+            self.top_frame, text="♡  Favoritos", width=130,
+            fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"],
+            text_color=COLORS["text_primary"], font=("Roboto", 13),
+            border_color=COLORS["accent"], border_width=1,
+            corner_radius=10, height=34,
+            command=self._toggle_favorites_view
+        )
+        self.btn_favorites.grid(row=0, column=4, padx=(0, 12), pady=10)
 
         # Content
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -148,7 +159,7 @@ class SonicVaultApp(ctk.CTk):
         self.player_frame.grid(row=0, column=1, sticky="ns")
         self.player_frame.grid_propagate(False)
 
-        # --- ZONA FIJA: foto + nombre/artista (altura fija) ---
+        # --- ZONA FIJA: foto + nombre/artista ---
         self.display_frame = ctk.CTkFrame(
             self.player_frame, fg_color="transparent", height=480
         )
@@ -160,7 +171,6 @@ class SonicVaultApp(ctk.CTk):
         )
         self.cover_label.pack(pady=(20, 10))
 
-        # --- INFO FRAME: tamaño fijo, no se expande con el texto ---
         self.info_frame = ctk.CTkFrame(
             self.display_frame,
             fg_color=COLORS["bg_tertiary"],
@@ -283,6 +293,38 @@ class SonicVaultApp(ctk.CTk):
         self._update_loop()
 
     # ========================================================================
+    # FAVORITOS
+    # ========================================================================
+    def _toggle_favorites_view(self):
+        self.showing_favorites = not self.showing_favorites
+        if self.showing_favorites:
+            self.btn_favorites.configure(
+                text="♥  Favoritos",
+                fg_color=COLORS["accent"],
+                hover_color=COLORS["accent_hover"],
+                border_color=COLORS["accent"],
+            )
+        else:
+            self.btn_favorites.configure(
+                text="♡  Favoritos",
+                fg_color=COLORS["bg_tertiary"],
+                hover_color=COLORS["accent"],
+                border_color=COLORS["accent"],
+            )
+        self._apply_filters()
+
+    def _toggle_favorite(self, filtered_idx: int):
+        meta = self.filtered_songs[filtered_idx]
+        is_fav = self.config.toggle_favorite(meta.path)
+        self.status.configure(
+            text=f"✦ {'♥ Añadido a' if is_fav else '♡ Quitado de'} favoritos"
+        )
+        if self.showing_favorites:
+            self._apply_filters()
+        else:
+            self._update_list_appearance()
+
+    # ========================================================================
     # MENÚ CONTEXTUAL
     # ========================================================================
     def _show_context_menu(self, event, filtered_idx: int):
@@ -292,11 +334,18 @@ class SonicVaultApp(ctk.CTk):
                     borderwidth=0, font=("Roboto", 11))
 
         meta = self.filtered_songs[filtered_idx]
+        is_fav = self.config.is_favorite(meta.path)
+
         menu.add_command(label=f"▶  {meta.title[:40]}", state="disabled")
         menu.add_separator()
         menu.add_command(label="Reproducir ahora", command=lambda: self._select_song(filtered_idx))
         menu.add_command(label="⏭  Reproducir a continuación",
                          command=lambda: self._add_to_up_next(filtered_idx))
+        menu.add_separator()
+        menu.add_command(
+            label=f"{'♥  Quitar de' if is_fav else '♡  Añadir a'} favoritos",
+            command=lambda: self._toggle_favorite(filtered_idx)
+        )
 
         if self.up_next:
             menu.add_separator()
@@ -408,7 +457,8 @@ class SonicVaultApp(ctk.CTk):
         for idx, (row, lbl) in enumerate(self.list_widgets):
             if idx < len(self.filtered_songs):
                 meta = self.filtered_songs[idx]
-                lbl.configure(text=f"{meta.title}  —  {meta.artist}  ({meta.format_duration()})")
+                heart = "♥ " if self.config.is_favorite(meta.path) else ""
+                lbl.configure(text=f"{heart}{meta.title}  —  {meta.artist}  ({meta.format_duration()})")
                 
                 song_idx = self._song_path_to_idx.get(meta.path, -1)
                 row.song_idx = song_idx
@@ -448,7 +498,7 @@ class SonicVaultApp(ctk.CTk):
 
         self._song_path_to_idx = {meta.path: i for i, meta in enumerate(self.songs)}
         
-        self.filtered_songs = self.songs.copy()
+        self._apply_filters()
         self._rebuild_list()
         self.status.configure(text=f"✦ {len(self.songs)} canciones cargadas")
 
@@ -497,21 +547,26 @@ class SonicVaultApp(ctk.CTk):
         self._update_list_appearance()
 
     # ========================================================================
-    # BÚSQUEDA — Con debounce, NO reconstruye
+    # BÚSQUEDA + FAVORITOS — Con debounce, NO reconstruye
     # ========================================================================
     def _on_search(self, event=None):
         if self._search_after_id:
             self.after_cancel(self._search_after_id)
-        self._search_after_id = self.after(200, self._do_search)
+        self._search_after_id = self.after(200, self._apply_filters)
 
-    def _do_search(self):
+    def _apply_filters(self):
         self._search_after_id = None
         query = self.search_entry.get().lower()
+        base = self.songs.copy()
+
+        if self.showing_favorites:
+            base = [s for s in base if self.config.is_favorite(s.path)]
+
         if not query:
-            self.filtered_songs = self.songs.copy()
+            self.filtered_songs = base
         else:
             self.filtered_songs = [
-                s for s in self.songs
+                s for s in base
                 if query in s.title.lower()
                 or query in s.artist.lower()
                 or query in s.album.lower()
