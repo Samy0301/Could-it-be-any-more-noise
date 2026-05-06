@@ -13,12 +13,25 @@ from constants import COLORS
 
 def get_app_dir() -> Path:
     if getattr(sys, 'frozen', False):
-        return Path(sys.executable).parent
+        return Path(os.path.dirname(os.path.abspath(sys.argv[0])))
     return Path(__file__).parent.resolve()
 
 
 def get_data_dir() -> Path:
-    data_dir = get_app_dir() / "data"
+    if getattr(sys, 'frozen', False):
+        # Ejecutable compilado: guardar en AppData/Roaming 
+        app_name = "SmellySongs"
+        if sys.platform == 'win32':
+            base = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
+        elif sys.platform == 'darwin':
+            base = Path.home() / 'Library' / 'Application Support'
+        else:
+            base = Path.home() / '.config'
+        data_dir = base / app_name
+    else:
+        # Modo desarrollo: seguir usando carpeta local
+        data_dir = get_app_dir() / "data"
+
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
 
