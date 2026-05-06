@@ -654,6 +654,7 @@ class SonicVaultApp(ctk.CTk):
         self.status.configure(text="❇️ Playing")
 
         self._update_list_appearance()
+        self._scroll_to_current()
 
     def _toggle_play(self):
         if not self.player.has_file():
@@ -740,6 +741,44 @@ class SonicVaultApp(ctk.CTk):
                 self._next_song()
 
         self.after_id = self.after(100, self._update_loop)
+
+    def _scroll_to_current(self):
+        """Desplaza la lista para mostrar la canción activa."""
+        if self.current_index < 0 or not self.songs:
+            return
+        
+        # Encontrar el índice filtrado de la canción actual
+        current_meta = self.songs[self.current_index]
+        try:
+            filtered_idx = self.filtered_songs.index(current_meta)
+        except ValueError:
+            return  # La canción actual no está en la lista filtrada
+        
+        if filtered_idx >= len(self.list_widgets):
+            return
+        
+        row, _ = self.list_widgets[filtered_idx]
+        
+        # Obtener el canvas subyacente del scrollable frame
+        canvas = self.scroll_frame._parent_canvas
+        
+        # Calcular posición relativa del widget en el canvas
+        row_y = row.winfo_y()
+        row_height = row.winfo_height()
+        canvas_height = canvas.winfo_height()
+        
+        # Obtener la región visible actual
+        y1 = canvas.canvasy(0)
+        y2 = y1 + canvas_height
+        
+        # Si el widget está fuera de la vista visible, hacer scroll
+        if row_y < y1 or row_y + row_height > y2:
+            total_height = canvas.bbox("all")[3] if canvas.bbox("all") else 1
+            if total_height > 0:
+                target_y = row_y - (canvas_height - row_height) / 2
+                target_y = max(0, min(target_y, total_height - canvas_height))
+                fraction = target_y / total_height
+                canvas.yview_moveto(fraction)
 
     @staticmethod
     def _fmt(seconds: float) -> str:
