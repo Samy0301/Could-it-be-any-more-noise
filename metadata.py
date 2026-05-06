@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Extracción de metadatos y portadas de archivos de audio."""
+"""Extracción de metadatos y portadas de archivos de audio"""
 
 import base64
 from pathlib import Path
@@ -14,13 +12,13 @@ from mutagen.id3 import APIC
 
 
 class AudioMetadata:
-    """Representa los metadatos de una pista de audio."""
+    """Representa los metadatos de una pista de audio"""
 
     def __init__(self, filepath: str):
         self.path = filepath
         self.title = Path(filepath).stem
-        self.artist = "Artista desconocido"
-        self.album = "Álbum desconocido"
+        self.artist = "Unknown Artist"
+        self.album = "Unknown Album"
         self.year = ""
         self.genre = ""
         self.duration = 0.0
@@ -48,8 +46,8 @@ class AudioMetadata:
         self.duration = audio.info.length
         if audio.tags:
             self.title = self._tag(audio.tags, "TIT2", self.title)
-            self.artist = self._tag(audio.tags, "TPE1", "Artista desconocido")
-            self.album = self._tag(audio.tags, "TALB", "Álbum desconocido")
+            self.artist = self._tag(audio.tags, "TPE1", "Unknown Artist")
+            self.album = self._tag(audio.tags, "TALB", "Unknown Album")
             for tag in audio.tags.values():
                 if isinstance(tag, APIC):
                     self.cover = tag.data
@@ -59,8 +57,8 @@ class AudioMetadata:
         audio = FLAC(self.path)
         self.duration = audio.info.length
         self.title = self._tag(audio, "title", self.title)
-        self.artist = self._tag(audio, "artist", "Artista desconocido")
-        self.album = self._tag(audio, "album", "Álbum desconocido")
+        self.artist = self._tag(audio, "artist", "Unknown Artist")
+        self.album = self._tag(audio, "album", "Unknown Album")
         if audio.pictures:
             self.cover = audio.pictures[0].data
 
@@ -72,8 +70,8 @@ class AudioMetadata:
         audio = OggVorbis(self.path)
         self.duration = audio.info.length
         self.title = self._tag(audio, "title", self.title)
-        self.artist = self._tag(audio, "artist", "Artista desconocido")
-        self.album = self._tag(audio, "album", "Álbum desconocido")
+        self.artist = self._tag(audio, "artist", "Unknown Artist")
+        self.album = self._tag(audio, "album", "Unknown Album")
         if "metadata_block_picture" in audio:
             try:
                 pic_data = base64.b64decode(audio["metadata_block_picture"][0])
@@ -99,7 +97,7 @@ class AudioMetadata:
 
     @staticmethod
     def _tag(audio_obj, key: str, default: str) -> str:
-        """Extrae un tag de forma segura."""
+        """Extrae un tag"""
         if hasattr(audio_obj, "get"):
             values = audio_obj.get(key, [default])
             return str(values[0]) if values else default

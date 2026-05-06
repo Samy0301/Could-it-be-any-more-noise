@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Constantes y configuración global de SonicVault."""
+"""Constantes y configuración global"""
 
 import customtkinter as ctk
 
@@ -16,7 +14,6 @@ DEFAULT_CONFIG = {
 }
 
 # Paleta de colores
-
 COLORS = {
     "bg_primary":    "#0f0718",
     "bg_secondary":  "#1a1025",
@@ -27,5 +24,4 @@ COLORS = {
     "text_primary":  "#f5f3ff",
     "text_secondary": "#a78bfa",
     "border":        "#4c1d95",
-    "danger":        "#c319b2",
 }

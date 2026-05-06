@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-SonicVault 🎵 — Optimizado: sin reconstrucción de lista
-"""
-
 import random
 from pathlib import Path
 from tkinter import filedialog, Menu
@@ -17,7 +11,7 @@ from player import MusicPlayer
 from utils import CoverGenerator
 
 
-class SonicVaultApp(ctk.CTk):
+class SmellySongsApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.config = AppConfig()
@@ -40,7 +34,7 @@ class SonicVaultApp(ctk.CTk):
         self._search_after_id = None
         self.showing_favorites = False
 
-        self.title("SonicVault 🎵")
+        self.title("SmellySongs 🎵")
         self.geometry(self.config.config.get("window_size", "1000x700"))
         self.minsize(900, 600)
         self.configure(fg_color=COLORS["bg_primary"])
@@ -53,9 +47,8 @@ class SonicVaultApp(ctk.CTk):
         if last and Path(last).exists():
             self._load_folder(last)
 
-    # ========================================================================
+
     # UI
-    # ========================================================================
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -160,7 +153,7 @@ class SonicVaultApp(ctk.CTk):
         self.player_frame.grid(row=0, column=1, sticky="ns")
         self.player_frame.grid_propagate(False)
 
-        # --- ZONA FIJA: foto + nombre/artista ---
+        # foto y nombre artista fijo
         self.display_frame = ctk.CTkFrame(
             self.player_frame, fg_color="transparent", height=480
         )
@@ -293,9 +286,8 @@ class SonicVaultApp(ctk.CTk):
 
         self._update_loop()
 
-    # ========================================================================
+
     # ATAJOS DE TECLADO
-    # ========================================================================
     def _bind_shortcuts(self):
         self.bind("<space>", self._shortcut_play_pause)
         self.bind("<Left>", self._shortcut_prev)
@@ -325,9 +317,8 @@ class SonicVaultApp(ctk.CTk):
         self.search_entry.select_range(0, "end")
         self.search_entry.icursor("end")
 
-    # ========================================================================
+
     # FAVORITOS
-    # ========================================================================
     def _toggle_favorites_view(self):
         self.showing_favorites = not self.showing_favorites
         if self.showing_favorites:
@@ -357,9 +348,8 @@ class SonicVaultApp(ctk.CTk):
         else:
             self._update_list_appearance()
 
-    # ========================================================================
+
     # MENÚ CONTEXTUAL
-    # ========================================================================
     def _show_context_menu(self, event, filtered_idx: int):
         menu = Menu(self, tearoff=0, bg=COLORS["bg_secondary"],
                     fg=COLORS["text_primary"], activebackground=COLORS["accent"],
@@ -369,12 +359,11 @@ class SonicVaultApp(ctk.CTk):
         meta = self.filtered_songs[filtered_idx]
         is_fav = self.config.is_favorite(meta.path)
 
-        # Título deshabilitado (info del tema)
         menu.add_command(label=f"▶️  {meta.title[:40]}", state="disabled")
         menu.add_separator()
 
         menu.add_command(label="⏭️ Play Next",
-                         command=lambda: self._add_to_up_next(filtered_idx))
+                        command=lambda: self._add_to_up_next(filtered_idx))
         menu.add_command(
             label=f"{'💜  Remove from' if is_fav else '💜  Add to'} Liked Songs",
             command=lambda: self._toggle_favorite(filtered_idx)
@@ -401,9 +390,8 @@ class SonicVaultApp(ctk.CTk):
         self.status.configure(text=f"❇️ '{meta.title[:30]}' ➡️ Next")
         self._update_list_appearance()
 
-    # ========================================================================
+
     # MODO
-    # ========================================================================
     def _update_mode_button(self):
         if self.play_mode == "shuffle":
             self.btn_mode.configure(
@@ -432,9 +420,8 @@ class SonicVaultApp(ctk.CTk):
             text=f"❇️ Mood: {'Random' if self.play_mode == 'shuffle' else 'Queue'}"
         )
 
-    # ========================================================================
+
     # HISTORIAL
-    # ========================================================================
     def _add_to_history(self, index: int):
         if self.history_index < len(self.play_history) - 1:
             self.play_history = self.play_history[:self.history_index + 1]
@@ -442,9 +429,8 @@ class SonicVaultApp(ctk.CTk):
             self.play_history.append(index)
             self.history_index = len(self.play_history) - 1
 
-    # ========================================================================
+
     # ESTILOS DE FILA
-    # ========================================================================
     def _get_row_state(self, song_idx: int) -> str:
         if song_idx == self.current_index:
             return "playing"
@@ -502,9 +488,8 @@ class SonicVaultApp(ctk.CTk):
             else:
                 row.grid_remove()
 
-    # ========================================================================
+
     # CARPETA Y LISTA
-    # ========================================================================
     def _select_folder(self):
         folder = filedialog.askdirectory()
         if folder:
@@ -536,7 +521,6 @@ class SonicVaultApp(ctk.CTk):
         self.status.configure(text=f"❇️ {len(self.songs)} Songs Uploaded")
 
     def _rebuild_list(self):
-        """ÚNICO lugar donde se destruyen y recrean widgets. Solo al cargar carpeta."""
         for row, lbl in self.list_widgets:
             row.destroy()
         self.list_widgets.clear()
@@ -579,9 +563,8 @@ class SonicVaultApp(ctk.CTk):
 
         self._update_list_appearance()
 
-    # ========================================================================
-    # BÚSQUEDA + FAVORITOS — Con debounce, NO reconstruye
-    # ========================================================================
+
+    # BÚSQUEDA Y FAVORITOS 
     def _on_search(self, event=None):
         if self._search_after_id:
             self.after_cancel(self._search_after_id)
@@ -606,9 +589,8 @@ class SonicVaultApp(ctk.CTk):
             ]
         self._update_list_appearance()
 
-    # ========================================================================
+
     # REPRODUCCIÓN
-    # ========================================================================
     def _select_song(self, filtered_idx: int):
         if not self.filtered_songs:
             return
@@ -647,7 +629,7 @@ class SonicVaultApp(ctk.CTk):
         img = self.cover_gen.get_image(meta)
         ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(280, 280))
         self.cover_label.configure(image=ctk_img, text="")
-        self.cover_label.image = ctk_img  # type: ignore[attr-defined]
+        self.cover_label.image = ctk_img  
 
         self.btn_play.configure(text="⏸️")
         self.progress.configure(state="normal")
@@ -747,31 +729,26 @@ class SonicVaultApp(ctk.CTk):
         if self.current_index < 0 or not self.songs:
             return
         
-        # Encontrar el índice filtrado de la canción actual
         current_meta = self.songs[self.current_index]
         try:
             filtered_idx = self.filtered_songs.index(current_meta)
         except ValueError:
-            return  # La canción actual no está en la lista filtrada
+            return 
         
         if filtered_idx >= len(self.list_widgets):
             return
         
         row, _ = self.list_widgets[filtered_idx]
         
-        # Obtener el canvas subyacente del scrollable frame
         canvas = self.scroll_frame._parent_canvas
         
-        # Calcular posición relativa del widget en el canvas
         row_y = row.winfo_y()
         row_height = row.winfo_height()
         canvas_height = canvas.winfo_height()
         
-        # Obtener la región visible actual
         y1 = canvas.canvasy(0)
         y2 = y1 + canvas_height
         
-        # Si el widget está fuera de la vista visible, hacer scroll
         if row_y < y1 or row_y + row_height > y2:
             total_height = canvas.bbox("all")[3] if canvas.bbox("all") else 1
             if total_height > 0:
@@ -785,9 +762,8 @@ class SonicVaultApp(ctk.CTk):
         m, s = divmod(int(seconds), 60)
         return f"{m:02d}:{s:02d}"
 
-    # ========================================================================
+
     # CIERRE
-    # ========================================================================
     def _on_close(self):
         self.config.save_config()
         self.config.save_favorites()
@@ -798,5 +774,5 @@ class SonicVaultApp(ctk.CTk):
 
 
 if __name__ == "__main__":
-    app = SonicVaultApp()
+    app = SmellySongsApp()
     app.mainloop()

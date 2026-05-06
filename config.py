@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Configuración persistente en JSON."""
+"""Configuración persistente en JSON"""
 
 import json
 from pathlib import Path
@@ -10,7 +8,7 @@ from constants import DEFAULT_CONFIG
 
 
 class AppConfig:
-    """Gestiona la configuración y favoritos guardados en disco."""
+    """Gestiona la configuración y favoritos guardados en disco"""
 
     CONFIG_FILE = get_data_dir() / "config.json"
     FAVORITES_FILE = get_data_dir() / "favorites.json"
@@ -52,7 +50,7 @@ class AppConfig:
             self.save_favorites()
 
     def toggle_favorite(self, path: str) -> bool:
-        """Devuelve True si quedó como favorito, False si se quitó."""
+        """Devuelve True si quedó como favorito, False si se quitó"""
         if path in self.favorites:
             self.remove_favorite(path)
             return False

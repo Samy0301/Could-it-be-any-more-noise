@@ -3,7 +3,7 @@
   "theme": "Dark",
   "volume": 0.7,
   "window_size": "1000x700",
-  "play_mode": "shuffle",
+  "play_mode": "queue",
   "session": {
     "song_path": "C:\\Users\\pc\\Music\\I dont know what Im doing\\the 1975 - somebody else __ lyrics(MP3_160K).mp3",
     "position": 5.333333333333333,

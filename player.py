@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Reproductor de audio con streaming en tiempo real."""
+"""Reproductor de audio con streaming en tiempo real"""
 
 import threading
 
@@ -11,7 +9,7 @@ from utils import suppress_stderr
 
 
 class MusicPlayer:
-    """Reproductor basado en soundfile + sounddevice (streaming)."""
+    """Reproductor basado en soundfile y sounddevice"""
 
     def __init__(self):
         self._sf = None
@@ -28,7 +26,7 @@ class MusicPlayer:
         self._file = None
 
     def load(self, filepath: str):
-        """Carga un archivo en modo streaming."""
+        """Carga un archivo en modo streaming"""
         self.stop()
         self._file = filepath
         try:

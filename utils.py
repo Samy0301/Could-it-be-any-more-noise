@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Utilidades: rutas, generador de carátulas y helpers."""
+"""Utilidades: rutas, generador de carátulas y helpers"""
 
 import os
 import sys
@@ -27,7 +25,7 @@ def get_data_dir() -> Path:
 
 @contextmanager
 def suppress_stderr():
-    """Silencia warnings de librerías C (mpg123, etc.)."""
+    """Silencia warnings de librerías"""
     devnull = -1
     old_stderr = -1
     try:
@@ -52,7 +50,7 @@ def suppress_stderr():
 
 
 class CoverGenerator:
-    """Genera carátulas por defecto con estética púrpura."""
+    """Genera carátulas por defecto"""
 
     def __init__(self, size: tuple[int, int] = (300, 300)):
         self.size = size
@@ -64,12 +62,10 @@ class CoverGenerator:
         cx, cy = self.size[0] // 2, self.size[1] // 2
         r = min(cx, cy) - 40
 
-        # Anillos decorativos morados
         draw.ellipse([cx-r, cy-r, cx+r, cy+r], outline=COLORS["bg_tertiary"], width=10)
         draw.ellipse([cx-r+15, cy-r+15, cx+r-15, cy+r-15], outline=COLORS["accent"], width=6)
         draw.ellipse([cx-r//2, cy-r//2, cx+r//2, cy+r//2], outline=COLORS["accent_bright"], width=3)
 
-        # Nota musical centrada
         draw.text((cx, cy), "♪", fill=COLORS["accent_bright"], anchor="mm")
         return img
 
