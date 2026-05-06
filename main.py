@@ -46,6 +46,7 @@ class SonicVaultApp(ctk.CTk):
         self.configure(fg_color=COLORS["bg_primary"])
 
         self._build_ui()
+        self._bind_shortcuts()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         last = self.config.config.get("last_folder", "")
@@ -70,7 +71,7 @@ class SonicVaultApp(ctk.CTk):
 
         self.search_entry = ctk.CTkEntry(
             self.top_frame,
-            placeholder_text="🔍  Buscar canción, artista o álbum...",
+            placeholder_text="🔍 Search",
             font=("Roboto", 14),
             fg_color=COLORS["bg_tertiary"],
             text_color=COLORS["text_primary"],
@@ -83,7 +84,7 @@ class SonicVaultApp(ctk.CTk):
         self.search_entry.bind("<KeyRelease>", self._on_search)
 
         self.btn_folder = ctk.CTkButton(
-            self.top_frame, text="📁  Abrir Carpeta", width=130,
+            self.top_frame, text="📁 Open Folder", width=130,
             fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
             text_color=COLORS["text_primary"], font=("Roboto", 13, "bold"),
             corner_radius=10, height=34,
@@ -92,7 +93,7 @@ class SonicVaultApp(ctk.CTk):
         self.btn_folder.grid(row=0, column=1, padx=(0, 10), pady=10)
 
         self.btn_random = ctk.CTkButton(
-            self.top_frame, text="🎲  Random", width=110,
+            self.top_frame, text="🎲 Play Any", width=110,
             fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"],
             text_color=COLORS["text_primary"], font=("Roboto", 13),
             border_color=COLORS["accent"], border_width=1,
@@ -110,7 +111,7 @@ class SonicVaultApp(ctk.CTk):
         self._update_mode_button()
 
         self.btn_favorites = ctk.CTkButton(
-            self.top_frame, text="♡  Favoritos", width=130,
+            self.top_frame, text="💜 Liked Songs", width=130,
             fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"],
             text_color=COLORS["text_primary"], font=("Roboto", 13),
             border_color=COLORS["accent"], border_width=1,
@@ -137,7 +138,7 @@ class SonicVaultApp(ctk.CTk):
 
         self.scroll_frame = ctk.CTkScrollableFrame(
             self.list_frame,
-            label_text="  📀  Biblioteca  (click derecho para opciones)  ",
+            label_text="  📀  Songs  ",
             label_font=("Roboto", 16, "bold"),
             label_text_color=COLORS["text_primary"],
             label_fg_color=COLORS["bg_tertiary"],
@@ -183,7 +184,7 @@ class SonicVaultApp(ctk.CTk):
 
         self.lbl_title = ctk.CTkLabel(
             self.info_frame,
-            text="Sin reproducción",
+            text="No Playback",
             font=("Roboto", 18, "bold"),
             text_color=COLORS["text_primary"],
             wraplength=280
@@ -192,7 +193,7 @@ class SonicVaultApp(ctk.CTk):
 
         self.lbl_artist = ctk.CTkLabel(
             self.info_frame,
-            text="Selecciona una carpeta",
+            text="Select a Folder",
             font=("Roboto", 13),
             text_color=COLORS["text_secondary"],
             wraplength=280
@@ -217,13 +218,13 @@ class SonicVaultApp(ctk.CTk):
         }
 
         self.btn_prev = ctk.CTkButton(
-            self.controls_frame, text="⏮", width=50, **btn_style,
+            self.controls_frame, text="⏮️", width=50, **btn_style,
             command=self._prev_song
         )
         self.btn_prev.grid(row=0, column=1, padx=6)
 
         self.btn_play = ctk.CTkButton(
-            self.controls_frame, text="▶", width=70,
+            self.controls_frame, text="     ▶️", width=70,
             fg_color=COLORS["accent_bright"], hover_color=COLORS["accent"],
             text_color=COLORS["bg_primary"], font=("Roboto", 18, "bold"),
             corner_radius=12, height=42,
@@ -232,7 +233,7 @@ class SonicVaultApp(ctk.CTk):
         self.btn_play.grid(row=0, column=2, padx=8)
 
         self.btn_next = ctk.CTkButton(
-            self.controls_frame, text="⏭", width=50, **btn_style,
+            self.controls_frame, text="⏭️", width=50, **btn_style,
             command=self._next_song
         )
         self.btn_next.grid(row=0, column=3, padx=6)
@@ -284,7 +285,7 @@ class SonicVaultApp(ctk.CTk):
 
         # Status
         self.status = ctk.CTkLabel(
-            self, text="✦ Listo",
+            self, text="❇️ Done",
             font=("Roboto", 12), text_color=COLORS["text_secondary"],
             anchor="w", fg_color="transparent"
         )
@@ -293,20 +294,52 @@ class SonicVaultApp(ctk.CTk):
         self._update_loop()
 
     # ========================================================================
+    # ATAJOS DE TECLADO (solo estos 4)
+    # ========================================================================
+    def _bind_shortcuts(self):
+        self.bind("<space>", self._shortcut_play_pause)
+        self.bind("<Left>", self._shortcut_prev)
+        self.bind("<Right>", self._shortcut_next)
+        self.bind("<Control-f>", self._shortcut_focus_search)
+
+        # En el search_entry: evitar que el espacio pause mientras escribe
+        self.search_entry.bind("<space>", lambda e: None)
+
+    def _shortcut_play_pause(self, event=None):
+        if self.focus_get() == self.search_entry:
+            return
+        self._toggle_play()
+
+    def _shortcut_prev(self, event=None):
+        if self.focus_get() == self.search_entry:
+            return
+        self._prev_song()
+
+    def _shortcut_next(self, event=None):
+        if self.focus_get() == self.search_entry:
+            return
+        self._next_song()
+
+    def _shortcut_focus_search(self, event=None):
+        self.search_entry.focus_set()
+        self.search_entry.select_range(0, "end")
+        self.search_entry.icursor("end")
+
+    # ========================================================================
     # FAVORITOS
     # ========================================================================
     def _toggle_favorites_view(self):
         self.showing_favorites = not self.showing_favorites
         if self.showing_favorites:
             self.btn_favorites.configure(
-                text="♥  Favoritos",
+                text="💜 Liked Songs",
                 fg_color=COLORS["accent"],
                 hover_color=COLORS["accent_hover"],
                 border_color=COLORS["accent"],
             )
         else:
             self.btn_favorites.configure(
-                text="♡  Favoritos",
+                text="💜 Liked Songs",
                 fg_color=COLORS["bg_tertiary"],
                 hover_color=COLORS["accent"],
                 border_color=COLORS["accent"],
@@ -317,7 +350,7 @@ class SonicVaultApp(ctk.CTk):
         meta = self.filtered_songs[filtered_idx]
         is_fav = self.config.toggle_favorite(meta.path)
         self.status.configure(
-            text=f"✦ {'♥ Añadido a' if is_fav else '♡ Quitado de'} favoritos"
+            text=f"❇️ {'💜 Added to' if is_fav else '💜 Removed from'} Liked Songs"
         )
         if self.showing_favorites:
             self._apply_filters()
@@ -325,7 +358,7 @@ class SonicVaultApp(ctk.CTk):
             self._update_list_appearance()
 
     # ========================================================================
-    # MENÚ CONTEXTUAL
+    # MENÚ CONTEXTUAL — SIN "Reproducir ahora"
     # ========================================================================
     def _show_context_menu(self, event, filtered_idx: int):
         menu = Menu(self, tearoff=0, bg=COLORS["bg_secondary"],
@@ -336,20 +369,21 @@ class SonicVaultApp(ctk.CTk):
         meta = self.filtered_songs[filtered_idx]
         is_fav = self.config.is_favorite(meta.path)
 
-        menu.add_command(label=f"▶  {meta.title[:40]}", state="disabled")
+        # Título deshabilitado (info del tema)
+        menu.add_command(label=f"▶️  {meta.title[:40]}", state="disabled")
         menu.add_separator()
-        menu.add_command(label="Reproducir ahora", command=lambda: self._select_song(filtered_idx))
-        menu.add_command(label="⏭  Reproducir a continuación",
+
+        # --- SE ELIMINÓ "Reproducir ahora" ---
+        menu.add_command(label="⏭️ Play Next",
                          command=lambda: self._add_to_up_next(filtered_idx))
-        menu.add_separator()
         menu.add_command(
-            label=f"{'♥  Quitar de' if is_fav else '♡  Añadir a'} favoritos",
+            label=f"{'💜  Remove from' if is_fav else '💜  Add to'} Liked Songs",
             command=lambda: self._toggle_favorite(filtered_idx)
         )
 
         if self.up_next:
             menu.add_separator()
-            menu.add_command(label=f"En cola: {len(self.up_next)} tema(s)", state="disabled")
+            menu.add_command(label=f"On Queue: {len(self.up_next)}", state="disabled")
 
         menu.tk_popup(event.x_root, event.y_root)
 
@@ -358,14 +392,14 @@ class SonicVaultApp(ctk.CTk):
         song_idx = self._song_path_to_idx.get(meta.path, -1)
         
         if song_idx == self.current_index:
-            self.status.configure(text="✦ Ya está sonando")
+            self.status.configure(text="❇️ Is Alreeady Playing")
             return
         if song_idx in self.up_next:
-            self.status.configure(text="✦ Ya está en la cola")
+            self.status.configure(text="❇️ Is Already on the Queue")
             return
         
         self.up_next.append(song_idx)
-        self.status.configure(text=f"✦ '{meta.title[:30]}' → a continuación")
+        self.status.configure(text=f"❇️ '{meta.title[:30]}' ➡️ Next")
         self._update_list_appearance()
 
     # ========================================================================
@@ -374,7 +408,7 @@ class SonicVaultApp(ctk.CTk):
     def _update_mode_button(self):
         if self.play_mode == "shuffle":
             self.btn_mode.configure(
-                text="🔀  Aleatorio",
+                text="🔀 Random",
                 fg_color=COLORS["bg_tertiary"],
                 hover_color=COLORS["accent"],
                 text_color=COLORS["text_primary"],
@@ -383,7 +417,7 @@ class SonicVaultApp(ctk.CTk):
             )
         else:
             self.btn_mode.configure(
-                text="🔁  Cola",
+                text="🔁 Queue",
                 fg_color=COLORS["bg_tertiary"],
                 hover_color=COLORS["accent"],
                 text_color=COLORS["text_primary"],
@@ -396,7 +430,7 @@ class SonicVaultApp(ctk.CTk):
         self.config.config["play_mode"] = self.play_mode
         self._update_mode_button()
         self.status.configure(
-            text=f"✦ Modo: {'Aleatorio' if self.play_mode == 'shuffle' else 'Cola'}"
+            text=f"❇️ Mood: {'Random' if self.play_mode == 'shuffle' else 'Queue'}"
         )
 
     # ========================================================================
@@ -457,7 +491,7 @@ class SonicVaultApp(ctk.CTk):
         for idx, (row, lbl) in enumerate(self.list_widgets):
             if idx < len(self.filtered_songs):
                 meta = self.filtered_songs[idx]
-                heart = "♥ " if self.config.is_favorite(meta.path) else ""
+                heart = "💜 " if self.config.is_favorite(meta.path) else ""
                 lbl.configure(text=f"{heart}{meta.title}  —  {meta.artist}  ({meta.format_duration()})")
                 
                 song_idx = self._song_path_to_idx.get(meta.path, -1)
@@ -480,7 +514,7 @@ class SonicVaultApp(ctk.CTk):
     def _load_folder(self, folder: str):
         self.config.config["last_folder"] = folder
         self.config.save_config()
-        self.status.configure(text=f"✦ Cargando: {folder}")
+        self.status.configure(text=f"❇️ Loading: {folder}")
         self.update_idletasks()
 
         self.songs.clear()
@@ -500,7 +534,7 @@ class SonicVaultApp(ctk.CTk):
         
         self._apply_filters()
         self._rebuild_list()
-        self.status.configure(text=f"✦ {len(self.songs)} canciones cargadas")
+        self.status.configure(text=f"❇️ {len(self.songs)} Songs Uploaded")
 
     def _rebuild_list(self):
         """ÚNICO lugar donde se destruyen y recrean widgets. Solo al cargar carpeta."""
@@ -598,9 +632,9 @@ class SonicVaultApp(ctk.CTk):
             self._error_count = 0
         except Exception as e:
             self._error_count += 1
-            self.status.configure(text=f"✦ Error ({self._error_count}): {str(e)[:50]}")
+            self.status.configure(text=f"❇️ Error ({self._error_count}): {str(e)[:50]}")
             if self._error_count >= 5:
-                self.status.configure(text="✦ Demasiados errores, detenido")
+                self.status.configure(text="❇️ To Many Erros, Stopped")
                 return
             if direction == -1:
                 self.after(200, self._prev_song)
@@ -616,9 +650,9 @@ class SonicVaultApp(ctk.CTk):
         self.cover_label.configure(image=ctk_img, text="")
         self.cover_label.image = ctk_img  # type: ignore[attr-defined]
 
-        self.btn_play.configure(text="⏸")
+        self.btn_play.configure(text="⏸️")
         self.progress.configure(state="normal")
-        self.status.configure(text="✦ Reproduciendo")
+        self.status.configure(text="❇️ Playing")
 
         self._update_list_appearance()
 
@@ -632,10 +666,10 @@ class SonicVaultApp(ctk.CTk):
 
         if self.player.is_playing():
             self.player.pause()
-            self.btn_play.configure(text="▶")
+            self.btn_play.configure(text="▶️")
         else:
             self.player.resume()
-            self.btn_play.configure(text="⏸")
+            self.btn_play.configure(text="⏸️")
 
     def _prev_song(self):
         if not self.songs:
@@ -728,3 +762,7 @@ class SonicVaultApp(ctk.CTk):
 if __name__ == "__main__":
     app = SonicVaultApp()
     app.mainloop()
+
+
+
+
