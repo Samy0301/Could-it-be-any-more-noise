@@ -217,7 +217,7 @@ class SmellySongsApp(ctk.CTk):
         self.btn_prev.grid(row=0, column=1, padx=6)
 
         self.btn_play = ctk.CTkButton(
-            self.controls_frame, text="▶️", width=70,
+            self.controls_frame, text="     ▶️", width=70,
             fg_color=COLORS["accent_bright"], hover_color=COLORS["accent"],
             text_color=COLORS["bg_primary"], font=("Roboto", 18, "bold"),
             corner_radius=12, height=42,
@@ -648,7 +648,7 @@ class SmellySongsApp(ctk.CTk):
 
         if self.player.is_playing():
             self.player.pause()
-            self.btn_play.configure(text="▶️")
+            self.btn_play.configure(text="   ▶️")
         else:
             self.player.resume()
             self.btn_play.configure(text="⏸️")
